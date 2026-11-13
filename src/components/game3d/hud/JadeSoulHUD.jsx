@@ -75,6 +75,7 @@ function WeaponStack({ playerLevel }) {
   const [notice, setNotice] = useState('');
   const wheelRef = useRef(null);
   const wheelAt = useRef(0);
+  const touchY = useRef(null);
 
   useEffect(() => subscribeAXEHUDWeaponRoles(() => refresh(n=>n+1)), []);
   useEffect(() => subscribeAXEEquipmentInventory(() => refresh(n=>n+1)), []);
@@ -86,7 +87,6 @@ function WeaponStack({ playerLevel }) {
   },[notice]);
 
   const active=getActiveEquippedAXEWeapon();
-  const activeRole=inferAXEWeaponRole(active);
   const performDraw=useCallback(role=>{
     const item=getAXERoleWeapon(role);
     if(!item){
@@ -114,6 +114,20 @@ function WeaponStack({ playerLevel }) {
     performDraw(role);
   },[performDraw]);
 
+  const cycleAvailable=useCallback(direction=>{
+    const roles=AXE_HUD_WEAPON_ROLES.map(row=>row.role);
+    let nextRole=inferAXEWeaponRole(getActiveEquippedAXEWeapon());
+    for(let i=0;i<roles.length;i++){
+      nextRole=roleForCycle(roles,nextRole,direction);
+      if(getAXERoleWeapon(nextRole)){
+        performDraw(nextRole);
+        return true;
+      }
+    }
+    setNotice('Assign an owned weapon to a role to switch');
+    return false;
+  },[performDraw]);
+
   useEffect(()=>{
     const el=wheelRef.current;
     if(!el)return undefined;
@@ -124,17 +138,11 @@ function WeaponStack({ playerLevel }) {
       const now=performance.now();
       if(now-wheelAt.current<180)return;
       wheelAt.current=now;
-      const roles=AXE_HUD_WEAPON_ROLES.map(row=>row.role);
-      let next=activeRole;
-      for(let i=0;i<roles.length;i++){
-        next=roleForCycle(roles,next,e.deltaY>0?1:-1);
-        if(getAXERoleWeapon(next)){performDraw(next);return;}
-      }
-      setNotice('Assign an owned weapon to a role to switch');
+      cycleAvailable(e.deltaY>0?1:-1);
     };
     el.addEventListener('wheel',onWheel,{passive:false});
     return ()=>el.removeEventListener('wheel',onWheel);
-  },[activeRole,performDraw]);
+  },[cycleAvailable]);
 
   // C cycles through owned, assigned roles; the 1–0 keys remain skills.
   // This is the same inventory-backed draw path used by the three buttons.
@@ -143,24 +151,23 @@ function WeaponStack({ playerLevel }) {
       if(e.code!=='KeyC'||e.repeat||e.defaultPrevented||e.ctrlKey||e.altKey||e.metaKey||
         window.__axeServiceModeOpen||window.__axeWorldMapOpen||
         e.target?.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName||''))return;
-      const roles=AXE_HUD_WEAPON_ROLES.map(row=>row.role);
-      let next=inferAXEWeaponRole(getActiveEquippedAXEWeapon());
-      for(let i=0;i<roles.length;i++){
-        next=roleForCycle(roles,next,1);
-        if(getAXERoleWeapon(next)){
-          e.preventDefault();
-          performDraw(next);
-          return;
-        }
-      }
+      e.preventDefault();
+      cycleAvailable(1);
     };
     window.addEventListener('keydown',handler);
     return ()=>window.removeEventListener('keydown',handler);
-  },[performDraw]);
+  },[cycleAvailable]);
 
   return (
     <div className="jade-weapon-position" aria-label="Three weapon roles: damage, defense, ranged">
-      <div className="jade-weapon-layout" ref={wheelRef}>
+      <div className="jade-weapon-layout" ref={wheelRef}
+        onTouchStart={e=>{ touchY.current=e.touches[0]?.clientY??null; }}
+        onTouchEnd={e=>{
+          const start=touchY.current;
+          touchY.current=null;
+          if(start!==null&&e.changedTouches[0]&&Math.abs(e.changedTouches[0].clientY-start)>24)
+            cycleAvailable(e.changedTouches[0].clientY<start?1:-1);
+        }}>
         <div className="jade-weapon-c-arc" aria-hidden="true" />
         <div className="jade-weapon-stack" role="group" aria-label="Weapon role quick switches">
           {AXE_HUD_WEAPON_ROLES.map(row=>{
