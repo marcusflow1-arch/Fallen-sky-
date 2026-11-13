@@ -5,6 +5,7 @@ import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js';
 import {companionModel,applyCompanionAppearance} from './genesisAssets';
 import {creatorBody} from './avatarCustomization';
 import {characterBodyBounds,FUSED_FEMALE_CHARACTER_MODEL_URL,FUSED_MALE_CHARACTER_MODEL_URL} from '@/lib/characterModelOverrides';
+import {originalGame3DModelUrl} from './legacyModelMirror.mjs';
 const customizations=new WeakMap();
 
 /**
@@ -44,6 +45,23 @@ async function loadWithHostedFallback(url) {
     : await new GLTFLoader().loadAsync(url);
   return {asset, usedFallback:false};
  } catch (primaryError) {
+  // The migration currently lacks the actual author-created GLBs in public/.
+  // Before degrading to the old platform avatar, try the *exact same file* on
+  // the owner's published original site. An isolated manager ensures the
+  // global legacy URL modifier cannot rewrite this URL to a missing local one.
+  const mirror = originalGame3DModelUrl(url);
+  if (mirror) {
+   try {
+    const asset = await new GLTFLoader(new THREE.LoadingManager()).loadAsync(mirror);
+    if (!missingBodyWarnings.has(mirror)) {
+     missingBodyWarnings.add(mirror);
+     console.warn('[Game 3D] Original authored model served from published Atom X Eve OS while the destination binary is missing:', url);
+    }
+    return {asset,usedFallback:false};
+   } catch (mirrorError) {
+    console.warn('[Game 3D] Original published model mirror was unavailable; trying hosted legacy avatar.', mirrorError);
+   }
+  }
   const hosted = legacyBodyFallback(url);
   if (!hosted) throw primaryError;
   try {
