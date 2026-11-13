@@ -18,6 +18,8 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Verify clone-town paving, house clearance and rear mountain grade
+        run: node --test tests/game3d-clone-town-tile-houses-rear-mountain.test.mjs
       - name: Verify exact Adam and Eve GLB assets
         run: npm run verify:game3d-characters
       - name: Verify character routes and entry contracts
