@@ -4,6 +4,7 @@
 
 import { Swords, Shield, Shirt, HardHat, Footprints, Hand, Gem, Sparkles, Wind, Layers3 } from 'lucide-react';
 import { AXE_ARMOR_PACK_SETS, makeAXEArmorTemplate } from '../axe/equipment/AXEArmorPackCatalog';
+import { AXE_CLONE_ARMOR_THUMBNAILS } from './AXECloneArmorThumbnails.mjs';
 
 export const CATEGORY_ICONS = {
   weapon: Swords,
@@ -108,7 +109,7 @@ for (const [index, preview] of AXE_TEST_FULL_SETS.entries()) {
       name: `${preview.label} — ${label}`,
       type: `${preview.label} / ${set.label}`,
       setId: set.id,
-      iconUrl: `/models/characters/fused/armor/${set.id}/male_${piece.armorSlot}.jpg`,
+      iconUrl: AXE_CLONE_ARMOR_THUMBNAILS[`${set.id}_${piece.armorSlot}`],
       iconUrlFemale: `/models/characters/fused/armor/${set.id}/female_${piece.armorSlot}.jpg`,
       introducedVersion: 2,
       source: 'test_loadout',
