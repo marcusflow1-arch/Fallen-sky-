@@ -338,7 +338,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
   const playerInvulTimer = useRef(0);
   const nearbyQuestNPCRef = useRef(null);
   // Master visibility flag for all non-boss entities on the map (quest NPCs,
-  // mutant enemies, companion). Hidden by default; press '=' to toggle back.
+  // mutant enemies, companion). Hidden by default; the dedicated scene-debug command can toggle them.
   const npcsVisibleRef = useRef(region === 'wolfveil' || region === LUNAR_CAVE_REGION);
   const playerLevelStateRef = useRef(1); // kept in sync with playerLevel for quest gating
 
@@ -2286,7 +2286,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       // Revert additive gesture poses before the normal Mixers update.
       echoGestureRuntime.preUpdate();
       impactFeedback.preUpdate(); // restore additive bone recoil before enemy Mixers pose
-      const npcsVisible = npcsVisibleRef.current; // '=' toggles all non-boss entities (NPCs/enemies/companion)
+      const npcsVisible = npcsVisibleRef.current; // non-boss entity scene visibility diagnostic
       if(region!==ASTRAL_DUNGEON_REGION)envSystem.update(delta);
       forestBiome?.update(delta, envSystem.getState(), modelRef.current?.position);
       wolfveilVillage?.update(delta,envSystem.getState(),modelRef.current?.position);importedSpawnTown?.update(delta);
@@ -3755,14 +3755,27 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         });
         setQuestNPCsUI(qUI);
 
-        // ─── Sync live target HP to abilityStore ───
+        // ─── Sync explicit lock HP without discarding NPC/player locks ───
+        // The old enemy-only lookup erased every player, NPC, boss or rogue
+        // selection on the very next frame. Those are valid manual targets.
         const currentTarget = getAbilityState().target;
         if (currentTarget) {
-          const te = enemies.find((e) => e.id === currentTarget.id);
-          if (te && te.alive && !te.dying) {
-            updateTargetHP(te.id, Math.max(0, te.hp));
-          } else if (!te || !te.alive || te.dying) {
+          const activeLock = lockOnTargetRef.current;
+          const sameLock = activeLock && String(activeLock.id) === String(currentTarget.id) &&
+            activeLock.kind === currentTarget.kind;
+          if (sameLock && activeLock.aliveRef?.() === false) {
+            lockOnTargetRef.current = null;
             clearTarget();
+          } else if (currentTarget.kind !== 'npc' && currentTarget.kind !== 'player') {
+            const te = [
+              ...enemies, ...bossEntities, ...(window.__gw3dRogues || []),
+            ].find(e => String(e.id) === String(currentTarget.id));
+            if (te?.alive && !te.dying && !te.defeated) {
+              updateTargetHP(te.id, Math.max(0, te.hp));
+            } else if (!te || !te.alive || te.dying || te.defeated) {
+              if (sameLock) lockOnTargetRef.current = null;
+              clearTarget();
+            }
           }
         }
 
