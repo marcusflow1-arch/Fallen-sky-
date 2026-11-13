@@ -10,6 +10,7 @@ import {createWolfveilTownWater} from './WolfveilImportedTownWater.mjs';
 import {installWolfveilTownTree,isWolfveilTownTreeMesh,removeWolfveilTownCentreTree} from './WolfveilImportedTownTree.mjs';
 import {critiqueAndEnhanceWolfveilTown,buildWolfveilTownCanopyDressing} from './WolfveilImportedTownCritique.mjs';
 import {plantTownLawnGrassBlades} from './WolfveilIndividualGrassBlades.js';
+import {wolfveilImportedTownHouseOverlapsTree} from './WolfveilTownTileBodyRemoval.mjs';
 export const DEFAULT_WOLFVEIL_TOWN_ASSET='https://media.base44.com/files/public/6ab42219a52fd34656a53b37/461493b8c_game3d_town_assembled.glb';
 
 // How each mesh of the model takes part in collision, by its Blender name.
@@ -37,6 +38,7 @@ export function installWolfveilImportedTown(scene,{url=DEFAULT_WOLFVEIL_TOWN_ASS
  let critiquePass=null,lawnGrass=null;
  const water=createWolfveilTownWater();
  const tree=installWolfveilTownTree(root);
+ let plazaTreeClearOfHouses=true;
  const canopyDressing=buildWolfveilTownCanopyDressing(root);
  const emit=(next,reason)=>{state=next;onStatus?.({state:next,reason});};
  const disposeModel=(object)=>{
@@ -63,7 +65,11 @@ export function installWolfveilImportedTown(scene,{url=DEFAULT_WOLFVEIL_TOWN_ASS
      else if(isWolfveilTownTreeMesh(node.name))removeWolfveilTownCentreTree(node);
    });
    town.name='Blender_Assembled_Town_80_Separate_Tiles';root.add(town);root.updateMatrixWorld(true);
-   // Smooth architectural/tile normals, apply Sumi-e textures & trim deep skirts.
+   // Inspect the actual loaded architectural geometry before keeping the
+   // owner tree: houses win over trunks/roots that overlap their footprint.
+   plazaTreeClearOfHouses=!wolfveilImportedTownHouseOverlapsTree(town,WOLFVEIL_IMPORTED_TOWN_TREE);
+   if(!plazaTreeClearOfHouses)tree.dispose();
+   // Keep walkable tile tops, remove protruding box walls and undersides.
    critiquePass=critiqueAndEnhanceWolfveilTown(town,WOLFVEIL_IMPORTED_TOWN_FLOOR_Y);
    lawnGrass=plantTownLawnGrassBlades(town,root);
    // Bake floors and walls from the placed triangles themselves.
@@ -76,7 +82,7 @@ export function installWolfveilImportedTown(scene,{url=DEFAULT_WOLFVEIL_TOWN_ASS
    collision=bakeWolfveilTownCollision({meshes,baseY:WOLFVEIL_IMPORTED_TOWN_FLOOR_Y,
      minX:p.x-p.width/2-2,maxX:p.x+p.width/2+2,
      minZ:p.z+70-p.depth/2-2,maxZ:p.z+70+p.depth/2+2,
-     circles:[WOLFVEIL_IMPORTED_TOWN_TREE]});
+     circles:plazaTreeClearOfHouses?[WOLFVEIL_IMPORTED_TOWN_TREE]:[]});
    model=town;emit('ready');onReady?.();
  },undefined,error=>{if(active){emit('error',error?.message||'Asset network error');globalThis.console?.warn('[Game 3D town] GLB load failed; Wolfveil remains walkable',error);}});
  return {root,get status(){return state;},get model(){return model;},
