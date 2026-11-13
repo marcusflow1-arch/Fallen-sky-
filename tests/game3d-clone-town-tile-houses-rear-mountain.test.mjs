@@ -89,6 +89,14 @@ test('actual house wall or roof mesh proximity removes only conflicting town tre
   assert.equal(wolfveilImportedTownHouseOverlapsTree(makeRoot('grass',1,1),tree),false);
 });
 
+test('a large house roof face overlapping the tree is detected even without close vertices',()=>{
+  const triangle=[[-10,5,-10],[10,5,-10],[0,5,10]];
+  const root={traverse(fn){fn({isMesh:true,name:'roof',
+    geometry:{attributes:{position:position(triangle)},index:{array:[0,1,2]}},
+    matrixWorld:IDENTITY});}};
+  assert.equal(wolfveilImportedTownHouseOverlapsTree(root,{x:0,z:0,radius:2}),true);
+});
+
 test('town houses/pavers sit within 2.5cm of their shared physical ground datum',()=>{
   assert.ok(WOLFVEIL_IMPORTED_TOWN.floorLiftMeters>=0);
   assert.ok(WOLFVEIL_IMPORTED_TOWN.floorLiftMeters<=0.03);
