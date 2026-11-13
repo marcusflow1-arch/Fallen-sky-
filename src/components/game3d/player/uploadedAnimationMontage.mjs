@@ -6,11 +6,14 @@ export const UPLOADED_MONTAGE_URL = '/game3d/animations/player-montage-v1.json';
 let packPromise;
 const actorClips = new WeakMap();
 
-// The rollout starts with Eve. The same rig conversion can be explicitly
-// enabled for other supported characters without replacing their native boot.
-export function usesUploadedEveMontage(target) {
-  return /^fused-female(?:-|$)/i.test(target?.userData?.rigId || '');
+// The owner-supplied 39-action Mixamo montage is retargeted onto BOTH fused
+// character skeletons. Previously it was enabled only for Eve, so Adam stayed
+// on fallbacks despite having compatible, validated bone bindings.
+export function usesUploadedPlayerMontage(target) {
+  return /^fused-(?:female|male)(?:-|$)/i.test(target?.userData?.rigId || '');
 }
+// Retain the old export so already-importing modules remain compatible.
+export const usesUploadedEveMontage = usesUploadedPlayerMontage;
 
 function groundingFor(pack, target) {
   const correction = pack.grounding;
@@ -83,7 +86,7 @@ export function decodeUploadedAnimationMontage(pack, target) {
   return finishDecode(state);
 }
 
-export async function loadUploadedAnimationMontage(target, { enabled = usesUploadedEveMontage(target), fetchPack } = {}) {
+export async function loadUploadedAnimationMontage(target, { enabled = usesUploadedPlayerMontage(target), fetchPack } = {}) {
   if (!enabled || !target) return {};
   if (actorClips.has(target)) return actorClips.get(target);
   const pending = (async () => {
