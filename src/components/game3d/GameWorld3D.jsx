@@ -3761,6 +3761,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         restoreMountedRider();
       }
       waterContact?.update(delta,modelRef.current?.position,envSystem.getState());
+       importedSpawnTown?.update(delta);
       // Spatial ambience follows world metres, not terrain tiles. Each track
       // fades separately and remembers its playback position if inaudible.
       const soundPos=modelRef.current?.position;
