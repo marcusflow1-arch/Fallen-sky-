@@ -5,6 +5,7 @@ import {WOLFVEIL_IMPORTED_TOWN,WOLFVEIL_IMPORTED_TOWN_FLOOR_Y,WOLFVEIL_IMPORTED_
   WOLFVEIL_IMPORTED_TOWN_TREE} from './WolfveilImportedTownLayout.mjs';
 import {bakeWolfveilTownCollision} from './WolfveilImportedTownCollision.mjs';
 import {createWolfveilTownWater} from './WolfveilImportedTownWater.mjs';
+import {finishWolfveilTownMaterials} from './WolfveilTownVisualFinish.mjs';
 import {installWolfveilTownTree,isWolfveilTownTreeMesh,removeWolfveilTownCentreTree} from './WolfveilImportedTownTree.mjs';
 export const DEFAULT_WOLFVEIL_TOWN_ASSET='https://media.base44.com/files/public/6ab42219a52fd34656a53b37/461493b8c_game3d_town_assembled.glb';
 
@@ -58,11 +59,12 @@ export function installWolfveilImportedTown(scene,{url=DEFAULT_WOLFVEIL_TOWN_ASS
      else if(isWolfveilTownTreeMesh(node.name))removeWolfveilTownCentreTree(node);
    });
    town.name='Blender_Assembled_Town_80_Separate_Tiles';root.add(town);root.updateMatrixWorld(true);
+   finishWolfveilTownMaterials(town,{floorY:WOLFVEIL_IMPORTED_TOWN_FLOOR_Y});
    // Bake floors and walls from the placed triangles themselves.
    const meshes=[];
    town.traverse(node=>{
      if(!node.isMesh||WATER.test(node.name)||CANOPY.test(node.name))return;
-     meshes.push({role:FLOOR.test(node.name)?'floor':'solid',
+     meshes.push({role:/^Tile_/i.test(node.name)?'hybrid':FLOOR.test(node.name)?'floor':'solid',
        position:worldPositions(node),index:node.geometry.index?.array??null});
    });
    collision=bakeWolfveilTownCollision({meshes,baseY:WOLFVEIL_IMPORTED_TOWN_FLOOR_Y,

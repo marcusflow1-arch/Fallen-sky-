@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ScrollText, Check, X, Volume2, VolumeX } from 'lucide-react';
 import { getQuestAudio } from './questAudioStore';
 import { getQuestDialogue } from './questDialogueStore';
+import QuestNpcLivePortrait from './QuestNpcLivePortrait';
 
 /**
  * QuestDialogueBox — liquid-glass dialogue panel for quest offers,
@@ -11,6 +12,7 @@ import { getQuestDialogue } from './questDialogueStore';
  */
 export default function QuestDialogueBox({
   npcName,
+  npcObject = null,
   quest,
   mode = 'offer',
   progress = 0,
@@ -128,15 +130,24 @@ export default function QuestDialogueBox({
       role="dialog"
       aria-modal="true"
       aria-label={`${npcName}: ${quest.title}`}
-      className="fixed left-6 top-24 w-[480px] max-w-[44vw] rounded-2xl p-6 z-[9999]"
+      className="axe-quest-visor fixed left-4 top-1/2 -translate-y-1/2 max-w-[calc(100vw-32px)] max-h-[88vh] overflow-y-auto rounded-2xl p-4 sm:p-6 z-[9999]"
       style={{
-        background: 'rgba(10, 14, 22, 0.78)',
+        width: 'min(940px, calc(100vw - 32px))',
+        animation: 'axeQuestVisorEnter 240ms cubic-bezier(.2,.8,.2,1) both',
+        background: 'rgba(10, 14, 22, 0.87)',
         backdropFilter: 'blur(28px) saturate(180%)',
         WebkitBackdropFilter: 'blur(28px) saturate(180%)',
         border: '1px solid rgba(250, 204, 21, 0.35)',
         boxShadow: '0 12px 48px rgba(0, 0, 0, 0.55), 0 0 40px rgba(250, 204, 21, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
       }}
     >
+      <style>{'@keyframes axeQuestVisorEnter { from { opacity:0; transform:translate(-30px,-50%); } to { opacity:1; transform:translate(0,-50%); } } @media (prefers-reduced-motion:reduce) { .axe-quest-visor { animation:none !important; } }'}</style>
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(225px,0.85fr)_minmax(0,1.45fr)]">
+        <div className="min-w-0">
+          <QuestNpcLivePortrait npcObject={npcObject} name={npcName} />
+          <p className="mt-3 px-1 text-[11px] leading-relaxed text-cyan-100/55">Quest-giver view follows the NPC's current 3D idle and gestures.</p>
+        </div>
+        <div className="min-w-0">
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2.5">
@@ -278,6 +289,8 @@ export default function QuestDialogueBox({
             <Check className="w-3.5 h-3.5" /> Claim Reward
           </button>
         )}
+      </div>
+        </div>
       </div>
     </div>
   );
