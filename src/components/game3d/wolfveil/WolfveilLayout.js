@@ -1,3 +1,4 @@
+import {gradeWolfveilImportedTown} from './WolfveilImportedTownLayout.mjs';
 import {gradeWolfveilPalaceTerrain} from './WolfveilPalaceGround.mjs';
 import {gradeWolfveilRiverbank} from './WolfveilRiverBanks.mjs';
 import {createWolfveilBridgeBankTerrainGrade} from './WolfveilBridgeBankTerrain.mjs';
@@ -258,7 +259,7 @@ export function wolfveilPreBridgeHeight(x,z){
 export const wolfveilBridgeBankTerrainGrade=createWolfveilBridgeBankTerrainGrade(
   WOLFVEIL_BRIDGES,wolfveilPreBridgeHeight);
 export function wolfveilHeight(x,z){
-  return wolfveilBridgeBankTerrainGrade(x,z);
+  return gradeWolfveilImportedTown(x,z,wolfveilBridgeBankTerrainGrade(x,z));
 }
 export const WOLFVEIL_DISTRICTS=Object.freeze([
   {id:'market',name:'Wolf-Spirit Market',center:[0,-70],purpose:'safe services'},
