@@ -1,7 +1,8 @@
 import {FUSED_CHARACTERS_ENABLED,FUSED_RIG_IDS,V5_RIG_IDS} from '@/lib/fusedCharacterFlag';
 // Browser-safe customization contract. Keep validation aligned with
 // base44/shared/avatarCustomization.ts; server-only asset resolution stays there.
-export const CUSTOMIZATION_SLOTS = ['body','hair','eyebrows','facial_hair','outfit','top','bottom','footwear','accessory','tattoo','complexion'];
+export const ARMOR_SLOTS = ['helmet','chest','pants','gloves','boots','cape'];
+export const CUSTOMIZATION_SLOTS = ['body','hair','eyebrows','facial_hair','outfit','top','bottom','footwear','accessory','tattoo','complexion',...ARMOR_SLOTS];
 export const SHAPE_CONTROLS = [
  {id:'face_width',label:'Face width',morph:'CC_FaceWidth',section:'face',min:-1},
  {id:'face_height',label:'Face length',morph:'CC_FaceHeight',section:'face',min:-1},
@@ -67,7 +68,7 @@ export const CREATOR_BODIES = {
  'fused-female-v1':{id:'fused-female-v1',gender:'female',label:'Eve',detail:'Fused female',url:'/models/characters/fused/Female_Fused_v2.glb',rig_id:'fused-female-v1'},
  'fused-male-v1':{id:'fused-male-v1',gender:'male',label:'Adam',detail:'Fused male',url:'/models/characters/fused/Male_Fused_v2.glb',rig_id:'fused-male-v1'},
 };
-export const FUSED_MANIFESTS = {hair:'/models/characters/fused/hair/manifest.json',tattoo:'/models/characters/fused/tattoos/manifest.json'};
+export const FUSED_MANIFESTS = {hair:'/models/characters/fused/hair/manifest.json',tattoo:'/models/characters/fused/tattoos/manifest.json',armor:'/models/characters/fused/armor/manifest.json'};
 export function creatorBody(appearance={}) {
  const body=CREATOR_BODIES[appearance?.creator_body];
  return body&&body.gender===(appearance.gender==='female'?'female':'male')?body:null;
