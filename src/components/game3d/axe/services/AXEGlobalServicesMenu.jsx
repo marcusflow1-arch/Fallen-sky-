@@ -161,6 +161,16 @@ function InventoryItemCard({ item, selected, picked, onClick, onDoubleClick, dis
           ) : (
             <Shield className="h-4 w-4 text-white/55" />
           )}
+          {typeof item.iconUrl === 'string' &&
+            (/^\/(models\/|game3d\/)/.test(item.iconUrl) || item.iconUrl.startsWith('data:image/jpeg;base64,')) && (
+              <img
+                src={item.iconUrl}
+                alt=""
+                loading="lazy"
+                className="absolute inset-0 h-full w-full rounded-lg object-contain"
+                onError={(event) => { event.currentTarget.hidden = true; }}
+              />
+            )}
           {item.equipped && (
             <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-emerald-200/30 bg-emerald-300/15">
               <Check className="h-2.5 w-2.5 text-emerald-100" />

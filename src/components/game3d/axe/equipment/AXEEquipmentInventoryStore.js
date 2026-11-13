@@ -91,7 +91,9 @@ function load() {
     for (const starter of starters) {
       const existing = byId.get(starter.instanceId);
       if (!existing) {
-        if (shouldAddNewStarters) byId.set(starter.instanceId, starter);
+        // `devGrant` items exist only in development builds (inventoryData.jsx) and are always
+        // put back, so an existing dev save gets the armor test pieces too.
+        if (starter.devGrant || shouldAddNewStarters) byId.set(starter.instanceId, starter);
         continue;
       }
 

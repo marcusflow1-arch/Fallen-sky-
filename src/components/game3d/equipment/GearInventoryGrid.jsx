@@ -59,7 +59,17 @@ export default function GearInventoryGrid({
                   : 'border border-white/10 bg-white/[0.03]'
               }`}
             >
-              {item && Icon && <Icon className="w-5 h-5 text-white/70" />}
+              {item && Icon && <Icon aria-hidden="true" className="w-5 h-5 text-white/70" />}
+              {item?.iconUrl && (
+                <img
+                  src={item.iconUrl}
+                  alt=""
+                  loading="lazy"
+                  draggable={false}
+                  className="absolute inset-[7%] w-[86%] h-[86%] object-contain rounded-sm pointer-events-none"
+                  onError={(event) => { event.currentTarget.hidden = true; }}
+                />
+              )}
               {item?.equipped && (
                 <span
                   className="absolute top-0.5 right-0.5 w-0 h-0"
@@ -74,7 +84,7 @@ export default function GearInventoryGrid({
                 <span className="absolute bottom-0.5 right-0.5 text-[8px] text-amber-200">🔒</span>
               )}
               {item && (
-                <span className="absolute bottom-0.5 left-1 right-1 truncate text-center text-[6px] text-white/35">
+                <span className="absolute bottom-0 left-0 right-0 truncate text-center text-[7px] text-white/85 bg-black/70 px-0.5 py-[1px]">
                   {item.name}
                 </span>
               )}

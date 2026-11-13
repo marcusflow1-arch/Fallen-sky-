@@ -29,6 +29,16 @@ export default function GearDetailPanel({ item }) {
         </div>
       )}
 
+      {item.iconUrl && (
+        <div className="mb-3 flex h-28 w-28 items-center justify-center overflow-hidden rounded-md border border-white/15 bg-black/35">
+          <img
+            src={item.iconUrl}
+            alt={`${item.name} equipment preview`}
+            className="h-full w-full object-contain"
+            onError={(event) => { event.currentTarget.hidden = true; }}
+          />
+        </div>
+      )}
       <div className="flex items-start justify-between mb-1">
         <div className="text-white text-xl font-medium">{item.name}</div>
         <button className="flex items-center gap-1 text-white/60 hover:text-white/90 text-xs">
