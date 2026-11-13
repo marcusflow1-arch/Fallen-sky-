@@ -89,6 +89,22 @@ export function removeWolfveilTownRaisedTileBodies(mesh) {
   return {changed:true,...plan};
 }
 
+function pointSegmentDistanceSq(x,z,a,b) {
+  const dx=b.x-a.x,dz=b.z-a.z;
+  const u=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz||1)));
+  return (x-a.x-u*dx)**2+(z-a.z-u*dz)**2;
+}
+function triangleTouchesCircleXZ(x,z,radiusSq,a,b,c) {
+  if (Math.min(pointSegmentDistanceSq(x,z,a,b),
+    pointSegmentDistanceSq(x,z,b,c),pointSegmentDistanceSq(x,z,c,a))<=radiusSq)
+    return true;
+  const denom=(b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x);
+  if(Math.abs(denom)<EPS)return false;
+  const u=((x-a.x)*(c.z-a.z)-(z-a.z)*(c.x-a.x))/denom;
+  const v=((b.x-a.x)*(z-a.z)-(b.z-a.z)*(x-a.x))/denom;
+  return u>=0&&v>=0&&u+v<=1; // trunk inside a broad roof triangle
+}
+
 /**
  * Examine the loaded, actual Blender walls/roofs before deciding whether
  * the plaza tree's trunk and root clearance intersects an imported house.
@@ -103,9 +119,21 @@ export function wolfveilImportedTownHouseOverlapsTree(townRoot, tree, clearance=
     if(overlaps || !node?.isMesh || !HOUSE_ARCHITECTURE.test(node.name))return;
     const pos=node.geometry?.attributes?.position;
     if(!pos)return;
+    const vertices=[];
     for(let i=0;i<pos.count;i++){
       const v=worldVertex(pos,i,node.matrixWorld);
+      vertices.push(v);
       if((v.x-tree.x)**2+(v.z-tree.z)**2<radius2){overlaps=true;break;}
+    }
+    if(overlaps)return;
+    // A large roof or wall face can span the tree even if all its vertices
+    // are farther away. Include the face interior, not only its corners.
+    const index=node.geometry.index?.array??Array.from({length:pos.count},(_,i)=>i);
+    for(let i=0;i+2<index.length;i+=3){
+      const a=vertices[index[i]],b=vertices[index[i+1]],c=vertices[index[i+2]];
+      if(a&&b&&c&&triangleTouchesCircleXZ(tree.x,tree.z,radius2,a,b,c)){
+        overlaps=true;break;
+      }
     }
   });
   return overlaps;
