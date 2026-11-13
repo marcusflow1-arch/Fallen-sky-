@@ -37,3 +37,30 @@ test('inventory and item details render asset pictures rather than only glyph ic
  for (const name of ['training-bow.svg','hunter-longbow.svg','moon-recurve-bow.svg'])
    assert.ok(catalog.includes(name), name);
 });
+
+test('all Game 3D inventory surfaces use the miniature equipment art', () => {
+ for (const path of [
+  'src/components/game3d/axe/services/AXEGlobalServicesMenu.jsx',
+  'src/components/game3d/progression/hub/CharacterInventoryTab.jsx',
+  'src/components/game3d/axe/services/AXEGlassLoadoutPane.jsx',
+ ]) assert.match(read(path), /iconUrl/);
+ assert.match(read('src/components/game3d/axe/services/AXEGlassLoadoutPane.jsx'), /data:image/);
+});
+
+test('both fitted armor sets have the male and female GLB files needed for equipment', () => {
+ const manifest = JSON.parse(read('public/models/characters/fused/armor/manifest.json'));
+ for (const set of ['nightscale','frostwarden']) {
+  assert(manifest.sets.some(s=>s.id===set));
+  for (const gender of ['male','female']) {
+   const entries = manifest[gender].filter(piece => piece.set === set);
+   assert.equal(entries.length,6,`${set} ${gender} missing pieces`);
+   for (const piece of entries) {
+    const filename = new URL('../public'+piece.url, import.meta.url);
+    const bytes = readFileSync(filename);
+    assert.equal(bytes.toString('ascii',0,4), 'glTF', piece.url);
+    assert.equal(bytes.readUInt32LE(4), 2, piece.url);
+    assert(piece.thumbnail.startsWith('/models/') || piece.thumbnail.startsWith('data:image/jpeg;base64,'));
+   }
+  }
+ }
+});
