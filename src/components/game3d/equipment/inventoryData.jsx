@@ -120,9 +120,9 @@ for (const [index, preview] of AXE_TEST_FULL_SETS.entries()) {
 }
 
 INVENTORY.weapon.push(...[
-  { id: 'test_training_bow', name: 'Training Bow', iconUrl: '/game3d/test-gear/training-bow.svg', baseStats: { attack: 3 }, atk: '2–4' },
-  { id: 'test_hunter_bow', name: 'Hunter Longbow', iconUrl: '/game3d/test-gear/hunter-longbow.svg', baseStats: { attack: 5 }, atk: '4–6' },
-  { id: 'test_moon_bow', name: 'Moon Recurve Bow', iconUrl: '/game3d/test-gear/moon-recurve-bow.svg', baseStats: { attack: 7 }, atk: '5–8' },
+  { id: 'test_training_bow', name: 'Training Bow', iconUrl: '/game3d/test-gear/training-bow.svg', baseStats: { attack: 3 }, atk: '2-4' },
+  { id: 'test_hunter_bow', name: 'Hunter Longbow', iconUrl: '/game3d/test-gear/hunter-longbow.svg', baseStats: { attack: 5 }, atk: '4-6' },
+  { id: 'test_moon_bow', name: 'Moon Recurve Bow', iconUrl: '/game3d/test-gear/moon-recurve-bow.svg', baseStats: { attack: 7 }, atk: '5-8' },
 ].map((bow) => gear({
   ...bow,
   type: 'Weapon — Bow',
