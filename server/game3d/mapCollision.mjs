@@ -59,9 +59,9 @@ for(const b of WOLFVEIL_ACTIVE_TOWN_BUILDINGS){
 // collision footprints: the live player path must be clear where the visual
 // shelter was deleted. Game 1 may still render its separate default stalls.
 // The fingerprint below derives from the updated actual obstacle list.
-// Real 3D fountain: a 4m torus rim with a 0.47m stone tube. The
-// 2D worker treats its footprint as impassable until height-aware mesh
-// collision is supported. This is not a walkable fountain interior.
+// The old fountain is replaced by the imported town's central tree;
+// retain the same radius around the central trunk so movement stays safe.
+// Per-building mesh collision remains a separate gameplay QA task.
 const circles=[Object.freeze({x:WOLFVEIL_SITES.wolfFountain.x,
   z:WOLFVEIL_SITES.wolfFountain.z+WOLFVEIL_RENDER_OFFSET_Z,radius:4.47}),
   // Static, authored tree trunks only. All terrain + tree placements are
@@ -117,6 +117,7 @@ export const WOLFVEIL_MAP_FINGERPRINT=createHash('sha256').update(JSON.stringify
   bridgeBankTerrainGradeSource:String(wolfveilBridgeBankTerrainGrade),
   bridgeBankTerrainLandingData:wolfveilBridgeBankTerrainGrade.bearings,
   removedLegacyFountainHousesRevision:'game3d-only-mansion-v1',
+  townPlateauGradeRevision:'imported-owner-town-80-tiles-130x141m-v1',
 })).digest('hex');
 const insideRect=(x,z,r,b)=>{
   const closeX=Math.max(b.x0,Math.min(x,b.x1));
