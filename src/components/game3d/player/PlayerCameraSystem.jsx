@@ -122,7 +122,12 @@ export class PlayerCameraSystem {
       return;
     }
 
-    if(lockedTarget)this.lockOnTargetRef.current=null;
+    if (lockedTarget) {
+      this.lockOnTargetRef.current = null;
+      const selected = getAbilityState()?.target;
+      if (selected && String(selected.id) === String(lockedTarget.id) &&
+          selected.kind === lockedTarget.kind) clearTarget();
+    }
     if(!Number.isFinite(o.yaw))o.yaw=0;
     if(!Number.isFinite(o.pitch))o.pitch=GAME3D_GAME2_CAMERA.pitch;
     const pos=model.position;
