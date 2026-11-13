@@ -124,6 +124,7 @@ export function createWolfveilVillage(scene,options={}){
   const town=buildWolfveilTown(world,{
     terrainSpan:options.span||1100,terrainSegments:options.segments||310,
     hideMarketStalls:Boolean(options.hideMarketStalls),
+    importedTownAtMarket:Boolean(options.importedTownAtMarket),
   });
   // This shared Wolfveil valley retires all legacy/fountain housing and
   // fallback silhouettes. The Luna Dashboard architecture is the ONLY home.
