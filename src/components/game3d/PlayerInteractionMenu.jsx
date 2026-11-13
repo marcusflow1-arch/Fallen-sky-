@@ -48,6 +48,20 @@ const mountActions = [
 export default function PlayerInteractionMenu({ open, player, kind = 'player', onClose, onAction }) {
   const [submenu, setSubmenu] = useState('');
   useEffect(() => { setSubmenu(''); }, [open, player?.id, kind]);
+  // The panel is modal and persistent: clicking the world/backdrop must not
+  // dismiss a pet, mount, or player menu. Only X, Escape or choosing an action
+  // can close it; submenu navigation itself leaves it open.
+  useEffect(() => {
+    if (!open) return undefined;
+    const escape = event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopImmediatePropagation?.();
+      onClose?.();
+    };
+    window.addEventListener('keydown', escape, true);
+    return () => window.removeEventListener('keydown', escape, true);
+  }, [open, onClose]);
   if (!player) return null;
   const isMount = kind === 'mount';
   const choices = isMount ? mountActions : submenu === 'compete' ? competitionActions : submenu === 'report' ? reportActions : playerActions;
@@ -64,7 +78,8 @@ export default function PlayerInteractionMenu({ open, player, kind = 'player', o
         <>
           <motion.div className="fixed inset-0 z-[110] bg-black/10"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={onClose} onContextMenu={event => { event.preventDefault(); onClose?.(); }}
+            onClick={event => event.stopPropagation()}
+            onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}
           />
           <div className="fixed z-[111] right-4 sm:right-[5%] top-1/2 -translate-y-1/2 w-[min(360px,calc(100vw-32px))]">
             <motion.section
