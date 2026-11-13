@@ -5,6 +5,7 @@ import {useCompanionIdentity} from '@/components/onboarding/CompanionIdentityCon
 import {CULTURAL_INSPIRATIONS, GENRE_DIRECTIONS} from '@/components/onboarding/creatorCultures';
 import {AXE_FACTIONS, getAXEFaction} from './axe/factions/AXEFactionWeaponConfig';
 import CreatorStage from '@/components/onboarding/CreatorStage';
+import FactionDossier from './axe/factions/FactionDossier';
 import {
   subscribeCharacters,
   activateAndSyncToHUD,
@@ -29,6 +30,7 @@ import './CharacterSelectionPanorama.css';
 import './CharacterLivingChronicle.css';
 import './CharacterCrossline.css';
 import './CharacterSelectionRefinement.css';
+import './CharacterFactionDossier.css';
 import './CharacterCreatorOriginalLayout.css';
 import '@/components/onboarding/creator-viewport-fix.css';
 
@@ -90,6 +92,7 @@ export default function CharacterLoginScreen({ onPlay, onBack, workflowEnabled =
   // Pause menu → Create character: reopen selection with the local-only creator visible.
   const [step,setStep]=useState(()=>openCreator?'faction':'start');
   const [selectedFaction,setSelectedFaction]=useState(null);
+  const [factionPreviewId,setFactionPreviewId]=useState(AXE_FACTIONS[0].id);
   const [showCreate, setShowCreate] = useState(false);
   const creatorSavedRef=useRef(false);
   const [showEditPlatformAvatar, setShowEditPlatformAvatar] = useState(false);
@@ -533,23 +536,17 @@ export default function CharacterLoginScreen({ onPlay, onBack, workflowEnabled =
       </>}
 
       {step==='faction' && (
-        <section className="axe-login-character-panel axe-login-faction-panel" aria-label="Choose a faction">
-          <p className="axe-login-panel-kicker">YOUR ALLEGIANCE</p>
-          <p className="axe-login-faction-intro">Choose your starting faction before shaping your character.</p>
-          <div className="axe-login-roster">
-            {AXE_FACTIONS.map(faction=>(
-              <button type="button" key={faction.id} className="axe-login-roster-entry"
-                onClick={()=>{setSelectedFaction(faction.id);setStep('creator');setShowCreate(true);}}
-              ><span className="axe-login-level-medal">{faction.index}</span>
-              <span className="axe-login-character-name"><strong>{faction.displayName}</strong>
-                <small>Choose this faction</small></span><ChevronRight size={17}/></button>
-            ))}
-          </div>
-          <button type="button" className="axe-login-create"
-            onClick={()=>setStep(selectableCharacters.length?'select':'start')}>
-            <ArrowLeft size={15}/> Back
-          </button>
-        </section>
+        <FactionDossier
+          activeId={factionPreviewId}
+          onPreview={setFactionPreviewId}
+          onChoose={factionId=>{
+            if(!AXE_FACTIONS.some(faction=>faction.id===factionId))return;
+            setSelectedFaction(factionId);
+            setStep('creator');
+            setShowCreate(true);
+          }}
+          onBack={()=>setStep(selectableCharacters.length?'select':'start')}
+        />
       )}
 
       {step==='select' && <div className="axe-chronicle-sigil" key={selected?.id||'empty'}
