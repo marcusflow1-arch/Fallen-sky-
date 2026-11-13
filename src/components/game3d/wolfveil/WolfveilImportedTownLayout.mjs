@@ -4,7 +4,7 @@
 export const WOLFVEIL_IMPORTED_TOWN=Object.freeze({
  id:'wolfveil-assembled-town',name:'Wolfveil Town Plaza',
  x:0,z:-70,width:130,depth:141,blendMeters:38,
- floorSourceY:0.690998,floorLiftMeters:0.07,
+ floorSourceY:0.690998,floorLiftMeters:0.025, // rest town houses/pavers close to the actual terrain
  // Size of the GLB in its own units; the model is centred on its origin.
  sourceWidth:10.423466,sourceDepth:11.330666,
 });
