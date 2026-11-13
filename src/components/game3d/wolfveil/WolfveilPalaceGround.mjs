@@ -41,6 +41,35 @@ export function palaceGroundContactY(naturalCenterY) {
   return palaceRootY(naturalCenterY) + s.sourceFoundationBottom + s.foundationEmbed;
 }
 
+/** Clone: halve the natural rise of the mountain BEHIND the large Luna house.
+ * Start beyond the mansion's rear foundation; feather at all boundaries.
+ * The front stairs and physical foundation contact grade remain untouched.
+ * All game movement/terrain/vegetation sample the same analytical height.
+ */
+export const WOLFVEIL_PALACE_REAR_MOUNTAIN = Object.freeze({
+  reduction: 0.50,
+  startZ: WOLFVEIL_PALACE.z + WOLFVEIL_PALACE.depth/2 + 6,
+  fullZ: WOLFVEIL_PALACE.z + WOLFVEIL_PALACE.depth/2 + 42,
+  fadeStartZ: 265,
+  endZ: 380,
+  coreHalfWidth: 78,
+  sideFeather: 48,
+});
+
+export function gradeWolfveilPalaceRearMountain(x, z, naturalY, rearReferenceY) {
+  if (![x,z,naturalY,rearReferenceY].every(Number.isFinite)) return naturalY;
+  const s=WOLFVEIL_PALACE_REAR_MOUNTAIN;
+  if (z<=s.startZ || z>=s.endZ || Math.abs(x)>=s.coreHalfWidth+s.sideFeather)
+    return naturalY;
+  const front=smooth01((z-s.startZ)/(s.fullZ-s.startZ));
+  const rear=1-smooth01((z-s.fadeStartZ)/(s.endZ-s.fadeStartZ));
+  const side=1-smooth01((Math.abs(x)-s.coreHalfWidth)/s.sideFeather);
+  // Halve only the positive rise over the ground at the rear of the manor;
+  // do not create depressions in areas that were already lower.
+  const rise=Math.max(0,naturalY-rearReferenceY);
+  return naturalY-rise*s.reduction*front*rear*side;
+}
+
 /**
  * Same analytical height is used by visible terrain, render ground-contact
  * checks, traversable path geometry, and the authoritative Wolfveil worker.
