@@ -1,7 +1,9 @@
 import {FUSED_CHARACTERS_ENABLED,FUSED_RIG_IDS,V5_RIG_IDS} from '@/lib/fusedCharacterFlag';
 // Browser-safe customization contract. Keep validation aligned with
 // base44/shared/avatarCustomization.ts; server-only asset resolution stays there.
-export const CUSTOMIZATION_SLOTS = ['body','hair','eyebrows','facial_hair','outfit','top','bottom','footwear','accessory','tattoo','complexion'];
+// Armor (tools/avatar-armor): one modular piece per slot, worn over the body and mixed across sets.
+export const ARMOR_SLOTS = ['helmet','chest','pants','gloves','boots','cape'];
+export const CUSTOMIZATION_SLOTS = ['body','hair','eyebrows','facial_hair','outfit','top','bottom','footwear','accessory','tattoo','complexion',...ARMOR_SLOTS];
 export const SHAPE_CONTROLS = [
  {id:'face_width',label:'Face width',morph:'CC_FaceWidth',section:'face',min:-1},
  {id:'face_height',label:'Face length',morph:'CC_FaceHeight',section:'face',min:-1},
@@ -63,14 +65,25 @@ export const RIG_IDS = FUSED_CHARACTERS_ENABLED ? FUSED_RIG_IDS : V5_RIG_IDS;
 // the fused bodies have retargeted animation clips.
 // The creator previews the SAME animated body the world renders (v2), so a
 // saved Eve/Adam never changes shape or rig between the studio and Game 3D.
+// height_m: standing height at the middle of the Height slider, measured on the body without hair (5'8").
 export const CREATOR_BODIES = {
- 'fused-female-v1':{id:'fused-female-v1',gender:'female',label:'Eve',detail:'Fused female',url:'/models/characters/fused/Female_Fused_v2.glb',rig_id:'fused-female-v1'},
- 'fused-male-v1':{id:'fused-male-v1',gender:'male',label:'Adam',detail:'Fused male',url:'/models/characters/fused/Male_Fused_v2.glb',rig_id:'fused-male-v1'},
+ 'fused-female-v1':{id:'fused-female-v1',gender:'female',label:'Eve',detail:'Fused female',url:'/models/characters/fused/Female_Fused_v2.glb',rig_id:'fused-female-v1',height_m:1.73},
+ 'fused-male-v1':{id:'fused-male-v1',gender:'male',label:'Adam',detail:'Fused male',url:'/models/characters/fused/Male_Fused_v2.glb',rig_id:'fused-male-v1',height_m:1.73},
 };
-export const FUSED_MANIFESTS = {hair:'/models/characters/fused/hair/manifest.json',tattoo:'/models/characters/fused/tattoos/manifest.json'};
+export const FUSED_BODY_HEIGHT_M = 1.73;
+export const FUSED_MANIFESTS = {hair:'/models/characters/fused/hair/manifest.json',tattoo:'/models/characters/fused/tattoos/manifest.json',armor:'/models/characters/fused/armor/manifest.json'};
 export function creatorBody(appearance={}) {
  const body=CREATOR_BODIES[appearance?.creator_body];
  return body&&body.gender===(appearance.gender==='female'?'female':'male')?body:null;
+}
+// Standing height (metres, without hair) of a fused creator body; null for the other bodies.
+export function standingHeight(appearance={}) {
+ return creatorBody(appearance)?.height_m||null;
+}
+// Height slider readout for scale v: centimetres and feet/inches.
+export function heightLabel(v,appearance={}) {
+ const cm=Math.round(v*(creatorBody(appearance)?.height_m||1.72)*100),inches=Math.round(cm/2.54);
+ return cm+' cm · '+Math.floor(inches/12)+'′'+(inches%12)+'″';
 }
 export function creatorRigId(appearance={}) {
  return creatorBody(appearance)?.rig_id||RIG_IDS[appearance?.gender==='female'?'female':'male'];

@@ -1,5 +1,7 @@
 // Shared contract for the creator, appearance saves, and uploaded asset catalog.
-export const CUSTOMIZATION_SLOTS = ['body','hair','eyebrows','facial_hair','outfit','top','bottom','footwear','accessory','tattoo','complexion'];
+// Armor (tools/avatar-armor): one modular piece per slot, worn over the body and mixed across sets.
+export const ARMOR_SLOTS = ['helmet','chest','pants','gloves','boots','cape'];
+export const CUSTOMIZATION_SLOTS = ['body','hair','eyebrows','facial_hair','outfit','top','bottom','footwear','accessory','tattoo','complexion',...ARMOR_SLOTS];
 // min -1: two-sided (0 is the original shape, -1 the opposite of +1)
 export const SHAPE_CONTROLS = [
 // (face_width, face_height, jaw_width, eye_spacing, nose_width, nose_length and mouth_width are also what "Match from a

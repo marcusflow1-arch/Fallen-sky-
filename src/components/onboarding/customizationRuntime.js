@@ -7,9 +7,15 @@ import { bindFusedMakeup } from './creatorMakeup.js';
 import { bindCreatorHairColor } from './creatorHairColor.js';
 import { ensureHairSprings, disposeHairSprings } from './hairSprings.js';
 import { ensureFemaleBodySprings, disposeFemaleBodySprings } from './bodySprings.js';
-// Layer-owned secondary bones (hair spring chains from tools/avatar-fuse) do not
-// exist on the body: they keep their own joints and hang from the matching body bone.
-const SECONDARY_BONE=/^Hair_[A-Za-z0-9_]+_S\d+_\d+$/;
+import { applyBodyMasks, layerBodyMask } from './armorBodyMask.js';
+export { applyBodyMasks, layerBodyMask };
+// Layer-owned secondary bones (hair spring chains from tools/avatar-fuse, cape chains
+// from tools/avatar-armor) do not exist on the body: they keep their own joints and
+// hang from the matching body bone.
+const SECONDARY_BONE=/^(?:Hair|Cape)_[A-Za-z0-9_]+_S\d+_\d+$/;
+
+// Armor pieces carry body masks (armorBodyMask.js): while a piece is worn, the body
+// triangles it encloses are hidden, so skin never shows through it.
 
 const morphHooks=new WeakSet();
 const surfaceSources=new WeakMap();
@@ -154,7 +160,7 @@ export function bindCustomizationLayer(baseRoot,layer,asset) {
   // Spring chains move onto the body: each chain's first joint hangs from the
   // body bone its parent was matched to, with the same (bind-pose) local offset.
   const chainRoots=[...secondary].filter(b=>!secondary.has(b.parent));
-  for(const b of chainRoots){const anchor=bones.get(b.parent?.name);if(!anchor)throw Error('A hair chain hangs from a bone this body does not have.');anchor.add(b);}
+  for(const b of chainRoots){const anchor=bones.get(b.parent?.name);if(!anchor)throw Error('A hair or cape chain hangs from a bone this body does not have.');anchor.add(b);}
   layer.userData.secondaryBones=chainRoots;
   const sourceBones=[];layer.traverse(n=>{if(n.isBone){n.userData.creatorLayerBone=true;if(!n.parent?.isBone)sourceBones.push(n);}});
   secondary.forEach(b=>{b.userData.creatorLayerBone=true;});
@@ -244,6 +250,7 @@ export class AvatarCustomizationRuntime {
      }
     });
    }
+   applyBodyMasks(this.root,[...this.layers.values()].filter(x=>x.asset.rig_id===this.rigId).map(x=>layerBodyMask(x.root)).filter(Boolean));
    this.apply();this.onChange(inspectCustomization(this.root));this.onState({loading:false,error:''});
   }catch(error) {
    created.forEach(x=>this.disposeItem(x));
@@ -252,6 +259,10 @@ export class AvatarCustomizationRuntime {
  }
  apply() {
   applyCustomizationAppearance(this.root,this.appearance);
+  // A worn helmet hides the hair layer (its manifest entry also hides the body's Hair_Default).
+  const helmet=[...this.layers.values()].some(x=>x.asset.hides_hair);
+  const hair=this.layers.get('hair');
+  if(hair&&hair.asset.binding!=='surface')hair.root.visible=!helmet;
   ensureHairSprings(this.root);
   this.layers.forEach(({asset,root})=>{
    const color=this.appearance.layer_colors?.[asset.slot] || (['hair','eyebrows','facial_hair'].includes(asset.slot)&&this.appearance.hair_tint_enabled?this.appearance.hair_color:null);
@@ -273,5 +284,5 @@ export class AvatarCustomizationRuntime {
  }
  restoreHidden(){this.hidden.forEach((value,node)=>{node.visible=value;});this.hidden.clear();}
  disposeItem(item){(item.root.userData.surfaceMeshes||[]).forEach(disposeLayer);disposeLayer(item.root);}
- dispose(){disposeHairSprings(this.root);disposeFemaleBodySprings(this.root);this.disposed=true;this.revision++;this.restoreHidden();this.layers.forEach(x=>this.disposeItem(x));this.layers.clear();}
+ dispose(){disposeHairSprings(this.root);disposeFemaleBodySprings(this.root);this.disposed=true;this.revision++;this.restoreHidden();applyBodyMasks(this.root,[]);this.layers.forEach(x=>this.disposeItem(x));this.layers.clear();}
 }

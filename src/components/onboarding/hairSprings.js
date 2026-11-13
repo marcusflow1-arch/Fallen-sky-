@@ -1,6 +1,7 @@
 // VRM-style spring bones for the fused characters' hair (tools/avatar-fuse
 // builds the chains: bones named Hair_<style>_S<sector>_<joint>, parented to
-// mixamorig:Head). Each joint keeps its tail position from the last frame and
+// mixamorig:Head) and armor capes (tools/avatar-armor: Cape_<set>_S<sector>_<joint>,
+// parented to mixamorig:Spine2, colliding with the back, hips and legs). Each joint keeps its tail position from the last frame and
 // moves it by inertia, a pull back toward its rest direction, and gravity,
 // then is pushed out of sphere colliders placed on the head, neck, torso,
 // shoulders and arms. Because the chains hang from the Head bone, hair turns
@@ -11,7 +12,8 @@
 // updateMatrixWorld, before the skeletons upload their matrices.
 import * as THREE from 'three';
 
-const CHAIN_BONE = /^Hair_[A-Za-z0-9_]+_S\d+_\d+$/;
+const CHAIN_BONE = /^(?:Hair|Cape)_[A-Za-z0-9_]+_S\d+_\d+$/;
+const CAPE_BONE = /^Cape_/;
 const controllers = new Set();
 const hookedScenes = new WeakSet();
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
@@ -23,6 +25,14 @@ export const HAIR_SPRING_SETTINGS = {
   hitRadius: 0.035,    // of the hips->head distance
 };
 
+// Capes are heavier than hair: they hang, swing less, and keep a thin gap to the body.
+export const CAPE_SPRING_SETTINGS = {
+  stiffness: 1.2,
+  drag: 0.62,
+  gravity: 0.7,
+  hitRadius: 0.012,
+};
+
 // Colliders as [bone, radius × U, optional second bone for a midpoint], U = hips→head distance.
 const COLLIDERS = [
   ['Head', 0.0, 'HeadTop_End', 'head'], ['Neck', 0.13],
@@ -31,6 +41,16 @@ const COLLIDERS = [
   ['LeftArm', 0.13], ['RightArm', 0.13],
   ['LeftArm', 0.1, 'LeftForeArm'], ['RightArm', 0.1, 'RightForeArm'],
   ['LeftForeArm', 0.08], ['RightForeArm', 0.08],
+];
+// Cape colliders (same units), measured on both fused bodies by tools/avatar-armor
+// (largest of the two, so the cape stays outside either): back, hips, thighs, knees, calves.
+// (Eve / Adam, distance to the skin: Spine2 0.16 / 0.25, Spine1 0.12 / 0.17, Spine 0.15 / 0.15,
+// Hips 0.22 / 0.19, mid-thigh 0.17 / 0.16, knee 0.10 / 0.14, mid-calf 0.14 / 0.17.)
+const CAPE_COLLIDERS = [
+  ['Spine2', 0.25], ['Spine1', 0.17], ['Spine', 0.15], ['Hips', 0.22],
+  ['LeftUpLeg', 0.17, 'LeftLeg'], ['RightUpLeg', 0.17, 'RightLeg'],
+  ['LeftLeg', 0.14], ['RightLeg', 0.14],
+  ['LeftLeg', 0.17, 'LeftFoot'], ['RightLeg', 0.17, 'RightFoot'],
 ];
 
 function findBone(root, suffix) {
@@ -66,6 +86,12 @@ class HairSpringController {
       if (!a || (spec[2] && !b)) continue;
       this.colliders.push({ a, b, radius: spec[1], head: spec[3] === 'head', pos: new THREE.Vector3(), r: 0 });
     }
+    this.capeColliders = [];
+    for (const spec of CAPE_COLLIDERS) {
+      const a = findBone(root, spec[0]), b = spec[2] ? findBone(root, spec[2]) : null;
+      if (!a || (spec[2] && !b)) continue;
+      this.capeColliders.push({ a, b, radius: spec[1], pos: new THREE.Vector3(), r: 0 });
+    }
     const bones = [];
     root.traverse((n) => { if (n.isBone && CHAIN_BONE.test(n.name)) bones.push(n); });
     for (const bone of bones) {
@@ -73,7 +99,7 @@ class HairSpringController {
       if (!child) continue; // chain tip
       const tail = child.getWorldPosition(new THREE.Vector3());
       this.joints.push({
-        bone, child,
+        bone, child, cape: CAPE_BONE.test(bone.name),
         rest: bone.quaternion.clone(),
         axis: child.position.clone().normalize(),
         localLength: child.position.length(),
@@ -100,6 +126,11 @@ class HairSpringController {
     // hips->head distance in world units (follows creator height and model scale)
     const U = this.hips && this.head ? this.hips.getWorldPosition(_v).distanceTo(this.head.getWorldPosition(_w)) : 0.6;
     this.unit = U;
+    for (const c of this.capeColliders) {
+      c.a.getWorldPosition(c.pos);
+      if (c.b) c.pos.lerp(c.b.getWorldPosition(_w), 0.5);
+      c.r = c.radius * U;
+    }
     for (const c of this.colliders) {
       if (c.face) {
         const base = this.head.getWorldPosition(c.pos), top = this.headTop.getWorldPosition(_w);
@@ -135,11 +166,12 @@ class HairSpringController {
     this.lastRootPos.copy(rootPos);
     const dt = Math.min(gap, 1 / 30);
     const U = this.updateColliders();
-    const S = HAIR_SPRING_SETTINGS;
-    const hit = S.hitRadius * U;
     const pos = new THREE.Vector3(), next = new THREE.Vector3(), restDir = new THREE.Vector3();
     for (const j of this.joints) {
       const { bone } = j;
+      const S = j.cape ? CAPE_SPRING_SETTINGS : HAIR_SPRING_SETTINGS;
+      const hit = S.hitRadius * U;
+      const colliders = j.cape ? this.capeColliders : this.colliders;
       bone.parent.updateMatrixWorld(false);
       bone.getWorldPosition(pos);
       const parentRot = bone.parent.getWorldQuaternion(_q);
@@ -150,7 +182,7 @@ class HairSpringController {
         .addScaledVector(restDir, S.stiffness * dt * length * 10)
         .add(_w.set(0, -S.gravity * dt * length * 10, 0));
       next.sub(pos).normalize().multiplyScalar(length).add(pos);
-      for (const c of this.colliders) {
+      for (const c of colliders) {
         const r = c.r + hit;
         _w.copy(next).sub(c.pos);
         const d = _w.length();

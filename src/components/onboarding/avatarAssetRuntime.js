@@ -96,8 +96,11 @@ export async function loadAvatarModel(config={},height=1.8,game3dModelUrl=null){
  const model=asset.scene||asset;model.animations=asset.animations||[];
  // glTF animation extras (clip speed, events) and the file's rig id; GLTFLoader keeps neither on its own.
  const json=asset.parser?.json;if(json){model.animations.forEach((clip,i)=>{const extras=json.animations?.[i]?.extras;if(extras&&typeof extras==='object')clip.userData={...clip.userData,...extras};});const rigId=json.extras?.rigId;if(typeof rigId==='string'){model.userData.rigId=rigId;model.userData.fusedCharacter=/^fused-/.test(rigId);}}
- let box=characterBodyBounds(model);
- model.scale.multiplyScalar(height/(box.max.y-box.min.y||1));box=characterBodyBounds(model);const center=box.getCenter(new THREE.Vector3());model.position.set(-center.x,-box.min.y,-center.z);
+ // Fused bodies are measured without hair; preserve the current in-world
+ // skin pigment and body-proportion pipeline immediately below.
+ const skip=fusedWorldBody?(node=>/^Hair_/.test(node.name)):null;
+ let box=characterBodyBounds(model,skip);
+ model.scale.multiplyScalar(height/(box.max.y-box.min.y||1));box=characterBodyBounds(model,skip);const center=box.getCenter(new THREE.Vector3());model.position.set(-center.x,-box.min.y,-center.z);
  model.traverse(n=>{if(n.isSkinnedMesh)n.frustumCulled=false;});
  // The in-world fused body must match the creator-stage pigment pipeline.
  // Shared platform avatars still use their original styling path.

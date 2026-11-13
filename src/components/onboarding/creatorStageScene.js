@@ -16,6 +16,13 @@ import {originalGame3DModelUrl} from './legacyModelMirror.mjs';
 import {characterBodyBounds} from '@/lib/characterModelOverrides';
 
 const HEIGHT = 1.72; // the stage normalises every body to this height
+// Fused bodies are measured without the height of their hairstyles.
+const FUSED_HEIGHT = 1.73;
+function bodyBox(model) {
+  const box = new THREE.Box3();
+  model.traverse(node=>{ if(node.isMesh && !/^Hair_/.test(node.name)) box.expandByObject(node,true); });
+  return box.isEmpty()?box.setFromObject(model,true):box;
+}
 const damp = (current, target, lambda, dt) => THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
 const bone = (root, name) => root.getObjectByName('mixamorig' + name) || root.getObjectByName('mixamorig:' + name);
 // Apply a viewer/world-axis glance to a bone without relying on the Mixamo
@@ -210,13 +217,15 @@ export function createCreatorStage(container, { url, gender = 'male', rigId = ''
     model.updateMatrixWorld(true);
     // Only the actual skinned actor contributes to camera framing; off-axis
     // animation/VFX nodes can make the full GLB bounds enormous and invisible.
-    const box = characterBodyBounds(model);
+    // Fused bodies are measured on the body alone (no hair, no armor layers) and stand FUSED_HEIGHT tall.
+    const fused = /\/characters\/fused\//.test(url);
+    const box = fused ? bodyBox(model) : characterBodyBounds(model);
     const bodyHeight = box.max.y - box.min.y;
     const meshCount = (()=>{let n=0;model.traverse(node=>{if(node.isMesh)n++;});return n;})();
     if(!meshCount||box.isEmpty()||!Number.isFinite(bodyHeight)||bodyHeight<0.05){
       throw new Error('The original Eve/Adam GLB loaded without usable visible character geometry.');
     }
-    const s = HEIGHT / bodyHeight;
+    const s = (fused ? FUSED_HEIGHT : HEIGHT) / bodyHeight;
     modelBounds = { factor:s, floorY:box.min.y,
       centerX:(box.min.x+box.max.x)*0.5,
       centerZ:(box.min.z+box.max.z)*0.5 };
