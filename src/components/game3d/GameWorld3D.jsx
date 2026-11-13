@@ -2110,7 +2110,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     // Client presentation collision uses the same tree radii as the
     // forest mesh; this does not pretend to replace server pathfinding.
     forestBiome?.resolveCollision(model.position, .62);
-    wolfveilVillage?.resolveBuildingCollision(model.position,.62,
+    importedSpawnTown?.resolveCollision(model.position,mounted ? .90 : .62,{x:fromX,y:model.position.y,z:fromZ});
+     wolfveilVillage?.resolveBuildingCollision(model.position,.62,
       {x:fromX,y:model.position.y,z:fromZ},{player:true});
     lunarDungeon?.resolveCollision(model.position,{x:fromX,z:fromZ},mounted?.85:.62);
     astralDungeon?.resolveCollision(model.position,{x:fromX,z:fromZ},mounted?.85:.62);
