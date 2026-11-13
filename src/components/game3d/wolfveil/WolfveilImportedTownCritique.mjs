@@ -4,7 +4,7 @@
 //     and disables flatShading across architecture, roofs, trims, and tiles.
 //  2. Generates world-anchored UVs and applies Sumi-e PBR albedo + bump maps
 //     so zero buildings or roads use flat untextured solid colors.
-//  3. Trims the 5.4m underground tile skirts, eliminates paving/lawn z-fighting,
+//  3. Deletes tile-box side/underside faces, trims separate paving skirts,
 //     seals the central plaza tree planter, and frames the 4 town avenues with
 //     Sumi-e timber-and-kawara gateways, sloped kerb aprons, and warm lanterns.
 import * as THREE from 'three';
@@ -14,6 +14,7 @@ import {
   WOLFVEIL_IMPORTED_TOWN_TREE,
 } from './WolfveilImportedTownLayout.mjs';
 import { getWolfveilSumiETextures, cloneRepeatedTexture } from './WolfveilSumiETextures.mjs';
+import { removeWolfveilTownRaisedTileBodies } from './WolfveilTownTileBodyRemoval.mjs';
 
 export function generateWorldBoxUVs(mesh, uvScale = 0.22) {
   const g = mesh.geometry;
@@ -69,16 +70,19 @@ export function critiqueAndEnhanceWolfveilTown(townRoot, floorY = WOLFVEIL_IMPOR
     const isPaving = /^(Expansion_)?paving$/i.test(n.name);
     const isGrass = /^(Expansion_)?grass$/i.test(n.name);
 
-    // Trim deep -5.4m concrete box skirts beneath town tiles & paving so nothing
-    // pokes out of surrounding embankments or river slopes.
-    if (isTile || isPaving) {
+    // ALL 80 Blender Tile_* pieces: retain their top paving polygons only.
+    // The former 0.55m-deep clipped boxes still showed as raised slab walls;
+    // removing the box faces also removes them from the subsequent collision bake.
+    // Preserve the real top polygons so houses, feet and NPCs remain grounded.
+    if (isTile) removeWolfveilTownRaisedTileBodies(n);
+    // Other paving is NOT a Tile_* body; preserve intentional canal kerbs.
+    else if (isPaving) {
       const pos = n.geometry.attributes.position;
       const minAllowedWorldY = floorY - 0.55;
       for (let i = 0; i < pos.count; i++) {
         const wy = pos.getY(i) * townRoot.scale.y + townRoot.position.y;
-        if (wy < minAllowedWorldY) {
+        if (wy < minAllowedWorldY)
           pos.setY(i, (minAllowedWorldY - townRoot.position.y) / townRoot.scale.y);
-        }
       }
       pos.needsUpdate = true;
       n.geometry.computeBoundingBox();
