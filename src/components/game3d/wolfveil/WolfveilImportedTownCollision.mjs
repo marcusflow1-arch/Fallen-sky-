@@ -1,10 +1,11 @@
 // Walkable floors and walls of the assembled town, baked from its real
 // triangles into a grid. Pure data (no THREE) so it can be checked offline.
 export const WOLFVEIL_TOWN_COLLISION=Object.freeze({
-  cell:.5,       // metres per grid cell
-  stepUp:1.1,    // tallest ledge a character can step onto (the plaza kerbs are just under 1m)
-  headroom:2.2,  // geometry between stepUp and this height is a wall
-  bodyPad:1,     // cells added around walls for the character's body
+  cell:.25,       // quarter-metre grid preserves individual stair tread edges
+  stepUp:.30,     // a character must ascend each tread, not jump a 1.1m kerb
+  stepDown:.60,   // prevent stepping over a ledge into a deep drop
+  headroom:2.2,   // geometry above stepUp, below headroom, is a wall
+  bodyPad:2,      // .5m full-body margin from sharp architecture
 });
 
 // Visits evenly spaced points across every triangle of a mesh.
@@ -16,7 +17,7 @@ function sampleTriangles({position:p,index},spacing,accept,visit){
     if(!accept(ax,ay,az,bx,by,bz,cx,cy,cz))continue;
     const span=Math.max(Math.hypot(bx-ax,by-ay,bz-az),Math.hypot(cx-ax,cy-ay,cz-az),
       Math.hypot(cx-bx,cy-by,cz-bz));
-    const steps=Math.min(2048,Math.max(1,Math.ceil(span/spacing)));
+    const steps=Math.min(96,Math.max(1,Math.ceil(span/spacing)));
     for(let i=0;i<=steps;i++)for(let k=0;k<=steps-i;k++){
       const u=i/steps,v=k/steps,w=1-u-v;
       visit(ax*w+bx*u+cx*v,ay*w+by*u+cy*v,az*w+bz*u+cz*v);
@@ -27,7 +28,7 @@ function sampleTriangles({position:p,index},spacing,accept,visit){
 // meshes: [{role:'floor'|'solid',position:Float32Array(world xyz),index}]
 // circles: [{x,z,radius}] solid round obstacles such as the plaza tree.
 export function bakeWolfveilTownCollision({meshes,minX,minZ,maxX,maxZ,baseY,circles=[]}){
-  const {cell,stepUp,headroom,bodyPad}=WOLFVEIL_TOWN_COLLISION;
+  const {cell,stepUp,stepDown,headroom,bodyPad}=WOLFVEIL_TOWN_COLLISION;
   const cols=Math.ceil((maxX-minX)/cell),rows=Math.ceil((maxZ-minZ)/cell);
   const top=new Float32Array(cols*rows).fill(NaN),wall=new Uint8Array(cols*rows);
   const at=(x,z)=>{
@@ -46,7 +47,8 @@ export function bakeWolfveilTownCollision({meshes,minX,minZ,maxX,maxZ,baseY,circ
   for(const mesh of meshes)if(mesh.role==='floor')sampleTriangles(mesh,cell*.5,flat,(x,y,z)=>{
     const i=at(x,z);
     if(i<0)return;
-    if(!(top[i]>=y))top[i]=y;
+    // Lower walkable levels win under overlapping roofs/raised decor.
+    if(!Number.isFinite(top[i]) || Math.abs(y-baseY)<Math.abs(top[i]-baseY))top[i]=y;
     if(y>highest)highest=y;
   });
 
@@ -80,7 +82,8 @@ export function bakeWolfveilTownCollision({meshes,minX,minZ,maxX,maxZ,baseY,circ
   const blocked=(x,z,fromX,fromZ)=>{
     const i=at(x,z);
     if(i<0)return false;
-    return solid[i]===1||groundOf(i)-groundOf(at(fromX,fromZ))>stepUp;
+    const delta=groundOf(i)-groundOf(at(fromX,fromZ));
+    return solid[i]===1||delta>stepUp+.005||delta< -stepDown-.005;
   };
   return {
     cols,rows,cell,
@@ -88,17 +91,27 @@ export function bakeWolfveilTownCollision({meshes,minX,minZ,maxX,maxZ,baseY,circ
     groundAt(x,z){const i=at(x,z);return i>=0&&top[i]===top[i]?top[i]:null;},
     isSolid(x,z){const i=at(x,z);return i>=0&&solid[i]===1;},
     blocked,
-    /** Keeps a moving character out of walls and off ledges it cannot climb. */
+    /** Sub-step every movement, including sprint, dodge and click-to-move. */
     resolve(position,previous){
-      if(!previous)return false;
+      if(!previous||!Number.isFinite(position?.x)||!Number.isFinite(position?.z)||
+         !Number.isFinite(previous.x)||!Number.isFinite(previous.z))return false;
       const px=previous.x,pz=previous.z,start=at(px,pz);
-      // A character that somehow starts inside a wall may always walk out.
+      // If an imported object spawned over the character, let them escape.
       if(start>=0&&solid[start])return false;
-      if(!blocked(position.x,position.z,px,pz))return false;
-      if(!blocked(position.x,pz,px,pz))position.z=pz;       // slide along X
-      else if(!blocked(px,position.z,px,pz))position.x=px;  // slide along Z
-      else{position.x=px;position.z=pz;}
-      return true;
+      const dx=position.x-px,dz=position.z-pz;
+      const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.125));
+      let x=px,z=pz,hit=false;
+      for(let n=1;n<=steps;n++){
+        const gx=px+dx*n/steps,gz=pz+dz*n/steps;
+        if(!blocked(gx,gz,x,z)){x=gx;z=gz;continue;}
+        hit=true;
+        // Stay on the current stair tread and slide along a wall; never
+        // teleport directly from one stair to a higher nonadjacent stair.
+        if(!blocked(gx,z,x,z))x=gx;
+        else if(!blocked(x,gz,x,z))z=gz;
+      }
+      position.x=x;position.z=z;
+      return hit;
     },
   };
 }
