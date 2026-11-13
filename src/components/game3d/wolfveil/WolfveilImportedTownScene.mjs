@@ -64,7 +64,7 @@ export function installWolfveilImportedTown(scene,{url=DEFAULT_WOLFVEIL_TOWN_ASS
    const meshes=[];
    town.traverse(node=>{
      if(!node.isMesh||WATER.test(node.name)||CANOPY.test(node.name))return;
-     meshes.push({role:FLOOR.test(node.name)?'floor':'solid',
+     meshes.push({role:/^Tile_/i.test(node.name)?'hybrid':FLOOR.test(node.name)?'floor':'solid',
        position:worldPositions(node),index:node.geometry.index?.array??null});
    });
    collision=bakeWolfveilTownCollision({meshes,baseY:WOLFVEIL_IMPORTED_TOWN_FLOOR_Y,
