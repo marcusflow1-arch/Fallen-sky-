@@ -8,7 +8,7 @@ import { characterScopedStorage } from '@/components/game3d/characterStorage';
 export const MAP_ID = 'world_3d';
 
 export const MAP_SPAWN_POINTS = [
-  { id: 'spawn_main',    label: 'Arena Camp',   x: 0,   z: 0,   default: true },
+  { id: 'spawn_main',    label: 'Town Plaza',   x: -12,   z: 12,   default: true },
   { id: 'spawn_north',   label: 'North Ridge',  x: 6,   z: -22 },
   { id: 'spawn_forest',  label: 'Forest Edge',  x: 24,  z: -13 },
   { id: 'spawn_ruins',   label: 'Old Ruins',    x: -26, z: 18 },
