@@ -1,5 +1,5 @@
 import {gradeWolfveilImportedTown} from './WolfveilImportedTownLayout.mjs';
-import {gradeWolfveilPalaceTerrain} from './WolfveilPalaceGround.mjs';
+import {gradeWolfveilPalaceTerrain,gradeWolfveilPalaceRearMountain,WOLFVEIL_PALACE_REAR_MOUNTAIN} from './WolfveilPalaceGround.mjs';
 import {gradeWolfveilRiverbank} from './WolfveilRiverBanks.mjs';
 import {createWolfveilBridgeBankTerrainGrade} from './WolfveilBridgeBankTerrain.mjs';
 import {gradeWolfveilWestHillside} from './WolfveilWestHillside.mjs';
@@ -252,8 +252,15 @@ const palaceNaturalJoinY=wolfveilNaturalHeight(0,89);
 // foundations in the real shared heightfield / worker. Preserve all grading
 // necessary to seat the actual Luna mansion and the authored bridge banks.
 export function wolfveilPreBridgeHeight(x,z){
+  // Rear mountain is 50% gentler in the manor-facing core. Feed this same
+  // height to the physical terrain BVH, vegetation roots and server worker.
+  // The manor pad and its SOUTH entrance stairs are graded afterwards and
+  // therefore retain exact ground/foundation contact.
+  const natural=wolfveilNaturalHeight(x,z);
+  const rearReference=wolfveilNaturalHeight(x,WOLFVEIL_PALACE_REAR_MOUNTAIN.startZ);
+  const rear=gradeWolfveilPalaceRearMountain(x,z,natural,rearReference);
   return gradeWolfveilPalaceTerrain(
-    x,z,wolfveilNaturalHeight(x,z),palaceNaturalCenterY,palaceNaturalJoinY);
+    x,z,rear,palaceNaturalCenterY,palaceNaturalJoinY);
 }
 // Grade the SAME real terrain mesh near both bearings of every Play bridge.
 // No extra visual-only "ground": the existing terrain BVH and trusted worker
