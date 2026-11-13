@@ -488,7 +488,9 @@ export function buildWolfveilTown(world,terrainOptions={}){
   // manor palace is re-added through WolfveilScene after this empty town.
   const residenceWorld=null;
   const buildings=BUILDINGS.map(b=>building(world,b));
-  const plazas=market(world,{hideStalls:Boolean(terrainOptions.hideMarketStalls)});
+  const plazas=terrainOptions.importedTownAtMarket
+    ?{plazaRadius:0,stallCount:0}
+    :market(world,{hideStalls:Boolean(terrainOptions.hideMarketStalls)});
   gates(world);
   const bridgesBuilt=bridges(world,terrainOptions);
   const housing=[]; // remove every unused house-plot foundation and fence
