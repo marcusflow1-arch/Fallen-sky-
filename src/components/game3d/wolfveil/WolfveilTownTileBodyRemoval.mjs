@@ -1,6 +1,6 @@
 // Clone Game 3D assembled town: keep the actual walkable paver TOPS, remove
 // Blender's deep square-tile box sides and undersides. Pure vertex math;
- // no alternate visual floor, physics mesh, imported asset rewrite, or THREE dependency.
+// no alternate visual floor, physics mesh, imported asset rewrite, or THREE dependency.
 export const WOLFVEIL_TOWN_TILE_CLEANUP = Object.freeze({
   topBandMeters: 0.40,
   minFlatness: 0.72,
@@ -51,7 +51,9 @@ export function planWolfveilTownTileTop(geometry, matrixWorld, rules = WOLFVEIL_
   const flat=all.filter(t=>t.flatness >= rules.minFlatness);
   if (!flat.length) return {indices:[],groups:[],topY:null,
     removedFaces:all.length,keptFaces:0};
-  const topY=Math.max(...flat.map(t=>t.y));
+  // Avoid a large argument spread on meshes with many paving triangles.
+  let topY=-Infinity;
+  for(const face of flat)if(face.y>topY)topY=face.y;
   const top=flat.filter(t=>t.y >= topY-rules.topBandMeters-EPS);
   const indices=[],groups=[];
   for(const g of originalGroups) {
