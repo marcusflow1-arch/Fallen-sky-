@@ -7,6 +7,52 @@ export const DEFAULT_WOLFVEIL_TOWN_ASSET='https://media.base44.com/files/public/
 // World-space triangle contact for the *visible imported meshes*, not another
 // invisible box around the entire town. The native terrain remains the floor.
 // Server-authoritative parity and signed-in traversal still require QA.
+
+// Identify authored blue, near-horizontal channel tiles only. A blue roof,
+// armor trim or upright decoration is NOT automatically a water body.
+function isImportedTownWaterTile(mesh,box){
+ const name=(mesh.name||'')+' '+(Array.isArray(mesh.material)?mesh.material.map(m=>m?.name).join(' '):mesh.material?.name||'');
+ const named=/water|river|stream|canal|pond|lake|channel/i.test(name);
+ const horizontal=box.max.y-box.min.y<.45;
+ const floor=box.min.y>=WOLFVEIL_IMPORTED_TOWN_FLOOR_Y-.8&&box.max.y<=WOLFVEIL_IMPORTED_TOWN_FLOOR_Y+1.3;
+ const blue=(Array.isArray(mesh.material)?mesh.material:[mesh.material]).some(m=>{
+  const c=m?.color;
+  return c&&c.b>c.r*1.3&&c.b>.17&&c.g>c.r*1.08;
+ });
+ return horizontal&&floor&&(named||blue);
+}
+function installImportedTownWater(town){
+ const surfaces=[],uniform={value:0};
+ const shader=new THREE.ShaderMaterial({
+  uniforms:{flowTime:uniform},transparent:true,depthWrite:false,
+  polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1,
+  vertexShader:`varying vec3 worldWaterPosition;
+   void main(){worldWaterPosition=(modelMatrix*vec4(position,1.)).xyz;
+    gl_Position=projectionMatrix*modelViewMatrix*vec4(position+vec3(0.,.018,0.),1.);}`,
+  fragmentShader:`uniform float flowTime;varying vec3 worldWaterPosition;
+   void main(){vec2 uv=worldWaterPosition.xz;
+    float crest=sin(uv.x*1.65+uv.y*.48-flowTime*1.15);
+    float cross=sin(uv.y*2.15-uv.x*.35-flowTime*.85);
+    float sheen=.5+.5*(crest*.65+cross*.35);
+    vec3 deep=vec3(.025,.21,.32),light=vec3(.16,.57,.68);
+    gl_FragColor=vec4(mix(deep,light,clamp(sheen,0.,1.)),.32);}`,
+ });
+ town.updateMatrixWorld(true);
+ const original=[];
+ town.traverse(mesh=>{if(mesh.isMesh&&mesh.geometry)original.push(mesh);});
+ for(const mesh of original){
+  const box=new THREE.Box3().setFromObject(mesh);
+  if(!isImportedTownWaterTile(mesh,box))continue;
+  const overlay=new THREE.Mesh(mesh.geometry,shader);
+  overlay.name='ImportedTown_FlowingWater_Visual';
+  overlay.renderOrder=2;
+  overlay.frustumCulled=mesh.frustumCulled;
+  mesh.add(overlay);surfaces.push(overlay);
+ }
+ return {count:surfaces.length,update(dt){if(Number.isFinite(dt)&&dt>0)uniform.value+=Math.min(dt,.1);},
+  dispose(){for(const mesh of surfaces)mesh.parent?.remove(mesh);shader.dispose();}};
+}
+
 function buildTownObstacles(town){
  const obstacles=[];
  town.updateMatrixWorld(true);
@@ -60,7 +106,7 @@ export function installWolfveilImportedTown(scene,{url=DEFAULT_WOLFVEIL_TOWN_ASS
  if(!scene?.add)throw Error('Imported town requires Game 3D scene');
  const root=new THREE.Group();root.name='Wolfveil_Imported_Player_Spawn_Town';
  root.userData.townId=WOLFVEIL_IMPORTED_TOWN.id;scene.add(root);
- let active=true,model=null,state='loading',obstacles=[];
+ let active=true,model=null,state='loading',obstacles=[],water=null;
  const emit=(next,reason)=>{state=next;onStatus?.({state:next,reason});};
  const disposeModel=(object)=>{
    const geometries=new Set(),materials=new Set();
@@ -84,7 +130,7 @@ export function installWolfveilImportedTown(scene,{url=DEFAULT_WOLFVEIL_TOWN_ASS
      WOLFVEIL_IMPORTED_TOWN.z+70-mid.z*factor);
    town.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true;}});
    town.name='Blender_Assembled_Town_80_Separate_Tiles';root.add(town);root.updateMatrixWorld(true);
-   model=town;obstacles=buildTownObstacles(town);emit('ready');
+   model=town;water=installImportedTownWater(town);obstacles=buildTownObstacles(town);emit('ready');
  },undefined,error=>{if(active){emit('error',error?.message||'Asset network error');console.warn('[Game 3D town] GLB load failed; Wolfveil remains walkable',error);}});
- return {root,get status(){return state;},get model(){return model;},resolveCollision(position,radius,previous){return active&&state==='ready'&&sweepTownContact(position,radius,previous,obstacles);},dispose(){if(!active)return;active=false;scene.remove(root);disposeModel(model);root.clear();model=null;obstacles=[];state='disposed';}};
+ return {root,get status(){return state;},get model(){return model;},get waterTileCount(){return water?.count??0;},update(delta){water?.update(delta);},resolveCollision(position,radius,previous){return active&&state==='ready'&&sweepTownContact(position,radius,previous,obstacles);},dispose(){if(!active)return;active=false;scene.remove(root);water?.dispose();water=null;disposeModel(model);root.clear();model=null;obstacles=[];state='disposed';}};
 }
