@@ -2837,7 +2837,11 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
                 if (enemy.isQuestSpawn) {
                   scene.remove(enemy.group);
                   enemy.group.traverse((c) => {
-                    if (c.geometry) c.geometry.dispose?.();
+                    // Quest actors can share GPU geometry from one parsed FBX.
+                    // Never invalidate living clones when the first enemy dies.
+                    // Their unique rings and per-actor materials still release.
+                    if (c.geometry && !enemy.sharedQuestGeometries?.has(c.geometry))
+                      c.geometry.dispose?.();
                     if (c.material) {
                       const ms = Array.isArray(c.material) ? c.material : [c.material];
                       ms.forEach((m) => m?.dispose?.());
@@ -3864,6 +3868,11 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     window.addEventListener('resize', handleResize);
 
     return () => {
+      // Cancel any pending, frame-staggered quest wave before world teardown.
+      const questSpawner = spawnQuestEnemiesRef.current;
+      questSpawner?.dispose?.();
+      if (spawnQuestEnemiesRef.current === questSpawner) spawnQuestEnemiesRef.current = null;
+      if (window.__gw3dSpawnQuestEnemies === questSpawner) window.__gw3dSpawnQuestEnemies = null;
       flushCheckpoint();
       window.removeEventListener('pagehide', flushCheckpoint);
       window.removeEventListener('game3dCheckpointFlush', flushCheckpoint);
