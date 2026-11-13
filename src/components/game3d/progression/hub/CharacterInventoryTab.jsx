@@ -165,10 +165,20 @@ export default function CharacterInventoryTab({ onOpenService }) {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
                     {item.slot === 'weapon'
                       ? <Swords className="h-4 w-4 text-white/55" />
                       : <Shield className="h-4 w-4 text-white/55" />}
+                    {typeof item.iconUrl === 'string' &&
+                      (/^\/(models\/|game3d\/)/.test(item.iconUrl) || item.iconUrl.startsWith('data:image/jpeg;base64,')) && (
+                      <img
+                        src={item.iconUrl}
+                        alt=""
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full rounded-lg object-contain"
+                        onError={(event) => { event.currentTarget.hidden = true; }}
+                      />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs font-semibold text-white/85">{item.name}</div>

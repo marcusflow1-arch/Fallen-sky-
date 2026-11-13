@@ -3,6 +3,7 @@
 // for the AXE equipment adapter to validate/evaluate item instances.
 
 import { Swords, Shield, Shirt, HardHat, Footprints, Hand, Gem, Sparkles, Wind, Layers3 } from 'lucide-react';
+import { AXE_ARMOR_PACK_SETS, makeAXEArmorTemplate, makeAXEDevArmorItems } from '../axe/equipment/AXEArmorPackCatalog';
 
 export const CATEGORY_ICONS = {
   weapon: Swords,
@@ -79,6 +80,77 @@ export const INVENTORY = {
     gear({ id: 'aux_skyguard_relic', name: 'Skyguard Relic', type: 'Auxiliary IV', slot: 'auxiliary', rarity: 'heroic', qualityBand: 20, level: 1, equipped: false, locked: false, auxSetId: 'AXE_AuxSet_Skyguard', baseStats: { attack: 3, maxHP: 12 } }),
   ],
 };
+
+
+/**
+ * Owner-approved inventory test gear, available to existing and new characters
+ * once through the versioned starter migration. These are genuine separate
+ * equippable items, not fake all-slot items that bypass equipment validation.
+ * The fitted 3D models are indexed by AXEArmorPackCatalog; no rarity/drop
+ * tables, combat grants, or market records are altered.
+ */
+export const AXE_TEST_FULL_SETS = Object.freeze([
+  Object.freeze({ label: 'Full Set 1', setId: 'nightscale' }),
+  Object.freeze({ label: 'Full Set 2', setId: 'frostwarden' }),
+]);
+
+for (const [index, preview] of AXE_TEST_FULL_SETS.entries()) {
+  const set = AXE_ARMOR_PACK_SETS.find((entry) => entry.id === preview.setId);
+  if (!set) continue;
+  for (const piece of set.pieces) {
+    const template = makeAXEArmorTemplate(set, piece);
+    const label = piece.armorSlot === 'helmet' ? 'Helmet'
+      : piece.armorSlot === 'pants' ? 'Legguards'
+      : piece.armorSlot.charAt(0).toUpperCase() + piece.armorSlot.slice(1);
+    INVENTORY[piece.slot].push(gear({
+      ...template,
+      id: `test_full_set_${index + 1}_${piece.slot}`,
+      name: `${preview.label} — ${label}`,
+      type: `${preview.label} / ${set.label}`,
+      setId: set.id,
+      iconUrl: `/models/characters/fused/armor/${set.id}/male_${piece.armorSlot}.jpg`,
+      iconUrlFemale: `/models/characters/fused/armor/${set.id}/female_${piece.armorSlot}.jpg`,
+      introducedVersion: 2,
+      source: 'test_loadout',
+      tradeable: false,
+      equipped: false,
+    }));
+  }
+}
+
+/**
+ * DEVELOPMENT BUILDS ONLY (`npm run dev`; import.meta.env.DEV is false in every `vite build`, so a live
+ * build never contains these items). The Crescent Moon armor is put in the inventory by default, unequipped,
+ * so equipping and unequipping it can be tried on the character. Each piece is its own item named after the
+ * piece ("Crescent Moon Helmet", "Crescent Moon Chestplate", ...) and shows its picture as the icon. They are
+ * not in AXE_ARMOR_PACK_SETS, so they never drop from enemies; the inventory store puts a missing piece back
+ * on every dev load (item.devGrant).
+ */
+if (import.meta.env?.DEV) {
+  for (const item of makeAXEDevArmorItems()) INVENTORY[item.slot].push(gear(item));
+}
+
+INVENTORY.weapon.push(...[
+  { id: 'test_training_bow', name: 'Training Bow', iconUrl: '/game3d/test-gear/training-bow.svg', baseStats: { attack: 3 }, atk: '2-4' },
+  { id: 'test_hunter_bow', name: 'Hunter Longbow', iconUrl: '/game3d/test-gear/hunter-longbow.svg', baseStats: { attack: 5 }, atk: '4-6' },
+  { id: 'test_moon_bow', name: 'Moon Recurve Bow', iconUrl: '/game3d/test-gear/moon-recurve-bow.svg', baseStats: { attack: 7 }, atk: '5-8' },
+].map((bow) => gear({
+  ...bow,
+  type: 'Weapon — Bow',
+  slot: 'weapon',
+  category: 'weapon',
+  masteryWeaponId: 'bow',
+  weaponFamily: 'bow',
+  axeWeaponRole: 'ranged',
+  rarity: 'common',
+  mastery: 1,
+  tier: 1,
+  level: 1,
+  durability: '100/100',
+  introducedVersion: 2,
+  tradeable: false,
+  equipped: false,
+})));
 
 // Armor pack (fitted armor layers): loot-only templates, deliberately NOT part of INVENTORY above, so
 // new and existing characters are never granted them as starters. They drop from monsters

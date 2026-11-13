@@ -1,6 +1,6 @@
 import {Check, Layers3} from 'lucide-react';
 import CreatorExpressionPanel from './CreatorExpressionPanel';
-import {SHAPE_CONTROLS,CREATOR_BODIES,creatorBody,EXPRESSION_CONTROLS} from '@/components/onboarding/avatarCustomization';
+import {SHAPE_CONTROLS,CREATOR_BODIES,ARMOR_SLOTS,creatorBody,EXPRESSION_CONTROLS} from '@/components/onboarding/avatarCustomization';
 import { CREATOR_BODY_PRESETS, CREATOR_BODY_SHAPE_IDS, applyCreatorBodyPreset } from './creatorBodyQuality.mjs';
 import {AVATAR_STYLE_PRESETS,COMPANION_MODELS,DEFAULT_AVATAR_APPEARANCE} from './genesisAssets';
 import {useCustomizationCatalog} from './useCustomizationCatalog';
@@ -9,7 +9,7 @@ import GenesisFaceScan from './GenesisFaceScan';
 import CulturalInspirationSelector from './CulturalInspirationSelector';
 import {regionColorKey} from './bodyRegions.js';
 import {MAKEUP_COLORS} from './creatorMakeup.js';
-import {BodyGlyph,ChestGlyph,ExpressionGlyph,FaceGlyph,GlossGlyph,GlutesGlyph,HairGlyph,HeightGlyph,InfluenceGlyph,OutfitGlyph,SkinGlyph,StyleGlyph,TattooGlyph} from './creatorIcons';
+import {ArmorGlyph,BodyGlyph,ChestGlyph,ExpressionGlyph,FaceGlyph,GlossGlyph,GlutesGlyph,HairGlyph,HeightGlyph,InfluenceGlyph,OutfitGlyph,SkinGlyph,StyleGlyph,TattooGlyph} from './creatorIcons';
 import './character-creator.css';
 
 // One rail entry per category. shot: the camera framing the stage eases to.
@@ -25,6 +25,7 @@ export const CREATOR_SECTIONS=[
  {id:'tattoos',label:'Tattoos',icon:TattooGlyph,shot:'back'},
  {id:'makeup',label:'Makeup & Gloss',icon:GlossGlyph,shot:'face'},
  {id:'wardrobe',label:'Outfit',icon:OutfitGlyph,shot:'body'},
+ {id:'armor',label:'Armor',icon:ArmorGlyph,shot:'body'},
  {id:'inspiration',label:'Influences',icon:InfluenceGlyph,shot:'body'},
  {id:'style',label:'Art style',icon:StyleGlyph,shot:'body'},
 ];
@@ -42,6 +43,9 @@ const OUTFIT=['#f2f0ea','#1d1f24','#3b4a63','#6b2b2b','#4f5d3a','#8a6a45','#5c3a
 const SHEEN=['#ffffff','#fff3e5','#ffe0bd','#f2d6cd','#dcecff'];
 const signedShape=v=>Math.abs(v)<.005?'0':(v>0?'+':'−')+Math.round(Math.abs(v)*100);
 const percent=v=>Math.round(v*100)+'';
+
+export const ARMOR_SLOT_LABELS={helmet:'Helmet',chest:'Chest & sleeves',pants:'Pants',gloves:'Gloves & bracers',boots:'Boots',cape:'Cape'};
+export function clearArmor(config){return ARMOR_SLOTS.reduce((next,slot)=>selectLayer(next,slot,null),config);}
 
 // Every body the creator offers: the two v5 bodies plus the fused creator bodies.
 export const CREATOR_BODY_CHOICES=[
@@ -191,6 +195,13 @@ export default function CharacterAppearanceEditor({config,setConfig,capabilities
    {caps.garments?.length>0&&<Group title="Colours">{caps.garments.map(g=><Colors key={g.id} label={g.label} choices={OUTFIT} value={config.material_colors?.[regionColorKey(g.id)]||''} onChange={c=>garmentColor(g.id,c)} onReset={()=>garmentColor(g.id,null)}/>)}</Group>}
    {fused?<p className="creator-hint">Fitted outfits for Eve and Adam arrive with their animation set.</p>:<>{layer('outfit','Outfits')}{layer('top','Tops')}{layer('bottom','Bottoms')}{layer('footwear','Footwear')}{layer('accessory','Accessories')}</>}
    {(capabilities.weapon||capabilities.hood)&&<Group title="Gear">{capabilities.weapon&&<label className="creator-switch"><span>Weapon</span><input type="checkbox" checked={config.weapon_visible!==false} onChange={e=>update({weapon_visible:e.target.checked})}/></label>}{capabilities.hood&&<label className="creator-switch"><span>Hood</span><input type="checkbox" checked={config.hood_enabled!==false} onChange={e=>update({hood_enabled:e.target.checked})}/></label>}</Group>}
+  </>}
+  {section==='armor'&&<>
+   {fused?<>
+    {ARMOR_SLOTS.map(slot=>layer(slot,ARMOR_SLOT_LABELS[slot],{extra:(builtin.armor||[]).filter(a=>a.slot===slot),emptyLabel:'None'}))}
+    <p className="creator-hint">Each armor piece equips separately. Crescent Moon is an Eve-only developer test set.</p>
+    {ARMOR_SLOTS.some(slot=>config.selected_assets?.[slot])&&<button type="button" className="creator-reset" onClick={()=>setConfig(c=>clearArmor(c))}>Remove all armor</button>}
+   </>:<p className="creator-hint">Fitted armor is available for fused Eve and Adam bodies; Crescent Moon is fitted to Eve.</p>}
   </>}
   {section==='inspiration'&&<CulturalInspirationSelector config={config} setConfig={setConfig}/>}
   {section==='style'&&<div className="creator-style-grid">{AVATAR_STYLE_PRESETS.map(s=><button type="button" key={s.id} aria-pressed={(config.style_preset||'heroic_fantasy')===s.id} onClick={()=>update({style_preset:s.id})}><span className={'creator-style-orb style-'+s.id}/><span><strong>{s.name}</strong><small>{s.short}</small></span></button>)}</div>}

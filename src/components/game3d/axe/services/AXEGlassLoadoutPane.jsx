@@ -33,7 +33,7 @@ function useLive(subscribe, get) {
 }
 function IconFor({ item, size=28 }) {
   const picture = item?.imageUrl || item?.iconUrl || item?.appearanceImage;
-  if (picture && (picture.startsWith('/') || /^https:\/\//.test(picture)))
+  if (typeof picture === 'string' && (picture.startsWith('/') || /^https:\/\//.test(picture) || /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(picture)))
     return <img alt="" loading="lazy" src={picture}/>;
   const key = item?.slot || item?.category;
   return key === 'weapon' ? <Sword size={size}/> :
