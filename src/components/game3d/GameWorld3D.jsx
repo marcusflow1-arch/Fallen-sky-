@@ -2806,7 +2806,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
               factionId: getActiveCharacter()?.factionId || null,
             });
             if (handoff.quest) {
-              setActiveQuestDialogue({ npcName: closestQuestNPC.name, ...handoff });
+              setActiveQuestDialogue({ npcName: closestQuestNPC.name, npcObject: closestQuestNPC.group, ...handoff });
             } else {
               setActiveDialogue({
                 name: closestQuestNPC.name,
@@ -4116,6 +4116,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       {activeQuestDialogue && (
         <QuestDialogueBox
           npcName={activeQuestDialogue.npcName}
+          npcObject={activeQuestDialogue.npcObject}
           quest={activeQuestDialogue.quest}
           mode={activeQuestDialogue.mode}
           progress={activeQuestDialogue.progress}
