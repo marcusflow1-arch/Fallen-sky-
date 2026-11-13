@@ -130,6 +130,8 @@ import { attachContextGuard } from './webglContextGuard';
 import { createInkWashLook, resolveInkLevel, resolveInkPalette } from './render/inkWashLook';
 import { buildGrassEnvironment } from './buildGrassEnvironment';
 import {createWolfveilVillage} from './wolfveil/WolfveilScene';
+import {installWolfveilImportedTown} from './wolfveil/WolfveilImportedTownScene.mjs';
+import {WOLFVEIL_PLAYER_TOWN_SPAWN} from './wolfveil/WolfveilImportedTownLayout.mjs';
 import {createWolfveilLivingMeadow} from './wolfveil/WolfveilLivingMeadow';
 import {createWolfveilLivingSumiEMaterials} from './wolfveil/WolfveilLivingSumiEMaterials.mjs';
 import { insideWolfveilClientGround } from './wolfveil/WolfveilTravelSafety.mjs';
@@ -597,6 +599,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
           silverWater:true,
           sunLight:sun,
           hideMarketStalls:true, // remove requested vendor shelters/tables
+          importedTownAtMarket:true, // replace old market fountain/plaza with assembled town
           // First 96m x 96m spawn square: textured earth/grass underneath
           // actual 3D clumps, preserving paved plaza and road readability.
           // Keep all other squares and the shared Game 1 view untouched.
@@ -622,6 +625,9 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const grassGround=wolfveilVillage?.ground||lunarDungeon?.ground||astralDungeon?.ground||buildGrassEnvironment(scene);
     const forestBiome = grassGround.userData.forestBiome;
     groundMeshes.push(grassGround);
+    // The owner's 80-tile assembled town is on the SAME authoritative terrain.
+    // Loading errors never block the character or remove Wolfveil's ground.
+    const importedSpawnTown=region==='wolfveil'?installWolfveilImportedTown(scene):null;
     // Actual 3D arch beside the already-running waterfall; never replace the
     // original Wolfveil terrain or Luna mansion with a static image plane.
     const lunarGate = region==='wolfveil' ? createLunarMountainEntrance(scene,{sampleGroundY}) : null;
@@ -1380,9 +1386,9 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         x:returnSite.approachX,z:returnSite.approachZ,
         y:sampleGroundY(returnSite.approachX,returnSite.approachZ) ?? 0.3,
       }:null;
-      fbx.position.set(returnPosition?.x ?? workflowSpawn?.x ?? 0,
+      fbx.position.set(returnPosition?.x ?? workflowSpawn?.x ?? (region==='wolfveil'?WOLFVEIL_PLAYER_TOWN_SPAWN.x:0),
         returnPosition?.y ?? workflowSpawn?.y ?? 0.3,
-        returnPosition?.z ?? workflowSpawn?.z ?? 0);
+        returnPosition?.z ?? workflowSpawn?.z ?? (region==='wolfveil'?WOLFVEIL_PLAYER_TOWN_SPAWN.z:0));
       if (initialWorkflowTarget && !workflowSpawn)
         showCombatNotice('Workflow target has no safe ground. Spawned at the Wolfveil market.');
 
@@ -3898,6 +3904,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       livingMeadow?.dispose();
       zombieCamps?.dispose();
       if(window.__gw3dZombieCamps===zombieCamps)window.__gw3dZombieCamps=null;
+      importedSpawnTown?.dispose();
       wolfveilVillage?.dispose();
       lunarGate?.dispose();
       astralGate?.dispose();
