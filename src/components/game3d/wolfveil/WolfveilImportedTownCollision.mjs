@@ -44,7 +44,7 @@ export function bakeWolfveilTownCollision({meshes,minX,minZ,maxX,maxZ,baseY,circ
     return Math.abs(ny)>.6*Math.hypot(nx,ny,nz);
   };
   let highest=baseY;
-  for(const mesh of meshes)if(mesh.role==='floor')sampleTriangles(mesh,cell*.5,flat,(x,y,z)=>{
+  for(const mesh of meshes)if(mesh.role!=='solid')sampleTriangles(mesh,cell*.5,flat,(x,y,z)=>{
     const i=at(x,z);
     if(i<0)return;
     // Lower walkable levels win under overlapping roofs/raised decor.
@@ -54,8 +54,9 @@ export function bakeWolfveilTownCollision({meshes,minX,minZ,maxX,maxZ,baseY,circ
 
   // 2. Walls: anything solid at body height above the floor it stands on.
   const bodyHeight=(ax,ay,az,bx,by,bz,cx,cy,cz)=>
+    !flat(ax,ay,az,bx,by,bz,cx,cy,cz)&&
     Math.max(ay,by,cy)>baseY+stepUp&&Math.min(ay,by,cy)<highest+headroom;
-  for(const mesh of meshes)if(mesh.role==='solid')sampleTriangles(mesh,cell*.5,bodyHeight,(x,y,z)=>{
+  for(const mesh of meshes)if(mesh.role!=='floor')sampleTriangles(mesh,cell*.5,bodyHeight,(x,y,z)=>{
     const i=at(x,z);
     if(i<0)return;
     const ground=groundOf(i);
