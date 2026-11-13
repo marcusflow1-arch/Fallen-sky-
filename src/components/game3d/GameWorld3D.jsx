@@ -2110,7 +2110,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     // Client presentation collision uses the same tree radii as the
     // forest mesh; this does not pretend to replace server pathfinding.
     forestBiome?.resolveCollision(model.position, .62);
-    wolfveilVillage?.resolveBuildingCollision(model.position,.62,
+    importedSpawnTown?.resolveCollision(model.position,mounted ? .90 : .62,{x:fromX,y:model.position.y,z:fromZ});
+     wolfveilVillage?.resolveBuildingCollision(model.position,.62,
       {x:fromX,y:model.position.y,z:fromZ},{player:true});
     lunarDungeon?.resolveCollision(model.position,{x:fromX,z:fromZ},mounted?.85:.62);
     astralDungeon?.resolveCollision(model.position,{x:fromX,z:fromZ},mounted?.85:.62);
@@ -3760,6 +3761,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         restoreMountedRider();
       }
       waterContact?.update(delta,modelRef.current?.position,envSystem.getState());
+       importedSpawnTown?.update(delta);
       // Spatial ambience follows world metres, not terrain tiles. Each track
       // fades separately and remembers its playback position if inaudible.
       const soundPos=modelRef.current?.position;
