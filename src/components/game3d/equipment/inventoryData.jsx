@@ -3,7 +3,7 @@
 // for the AXE equipment adapter to validate/evaluate item instances.
 
 import { Swords, Shield, Shirt, HardHat, Footprints, Hand, Gem, Sparkles, Wind, Layers3 } from 'lucide-react';
-import { AXE_ARMOR_PACK_SETS, makeAXEArmorTemplate } from '../axe/equipment/AXEArmorPackCatalog';
+import { AXE_ARMOR_PACK_SETS, makeAXEArmorTemplate, makeAXEDevArmorItems } from '../axe/equipment/AXEArmorPackCatalog';
 
 export const CATEGORY_ICONS = {
   weapon: Swords,
@@ -116,6 +116,18 @@ for (const [index, preview] of AXE_TEST_FULL_SETS.entries()) {
       equipped: false,
     }));
   }
+}
+
+/**
+ * DEVELOPMENT BUILDS ONLY (`npm run dev`; import.meta.env.DEV is false in every `vite build`, so a live
+ * build never contains these items). The Crescent Moon armor is put in the inventory by default, unequipped,
+ * so equipping and unequipping it can be tried on the character. Each piece is its own item named after the
+ * piece ("Crescent Moon Helmet", "Crescent Moon Chestplate", ...) and shows its picture as the icon. They are
+ * not in AXE_ARMOR_PACK_SETS, so they never drop from enemies; the inventory store puts a missing piece back
+ * on every dev load (item.devGrant).
+ */
+if (import.meta.env?.DEV) {
+  for (const item of makeAXEDevArmorItems()) INVENTORY[item.slot].push(gear(item));
 }
 
 INVENTORY.weapon.push(...[

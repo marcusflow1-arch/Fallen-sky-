@@ -92,7 +92,7 @@ function load() {
       if (!existing) {
         // Only introduce items from versions not yet seen; never recreate
         // previously consumed V1 starters during the V2 test-gear rollout.
-        if (previousCatalogVersion < Number(starter.introducedVersion || 1))
+        if (starter.devGrant || previousCatalogVersion < Number(starter.introducedVersion || 1))
           byId.set(starter.instanceId, starter);
         continue;
       }
