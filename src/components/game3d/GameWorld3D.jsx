@@ -473,7 +473,9 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const rendererGuard = attachContextGuard(renderer);
     // Clone-only, one-time activation of the user's selected Ultra Max
     // world style; never migrates inventory, characters or simulation state.
-    activateCloneUltraWorldGraphics(window.localStorage);
+    let cloneUltraGraphics;
+    try{cloneUltraGraphics=activateCloneUltraWorldGraphics(window.localStorage);}
+    catch{cloneUltraGraphics=activateCloneUltraWorldGraphics(null);}
     // The world's look: sumi-e ink wash (render/inkWashLook.js), as the pause menu's Graphics settings say (or ?ink=).
     const inkLook = createInkWashLook({ renderer, guard: rendererGuard, level: resolveInkLevel(), palette: resolveInkPalette() });
     let livingInkWorld = null; // initialized only after the Game 3D Wolfveil roots exist
@@ -483,7 +485,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       inkLook.setPalette(resolveInkPalette());
       inkLook.setLevel(resolveInkLevel());
       livingInkWorld?.setLevel(resolveInkLevel());
-      const g=readGraphicsSettings();
+      const g={...cloneUltraGraphics,...readGraphicsSettings()};
       atomicLook?.setQuality(g.quality||'high');
       atomicLook?.setEnabled(g.artStyle==='atomic-ultra-sumi');
     };
@@ -687,7 +689,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     // The *existing* clone game scene is reused. GPU-instanced living grass
     // streams across all eligible outdoor Wolfveil tiles, not one 1000m²
     // demonstration patch. Trees keep their actual imported GLB materials.
-    const atomicSettings=readGraphicsSettings();
+    const atomicSettings={...cloneUltraGraphics,...readGraphicsSettings()};
     atomicLook=createAtomicUltraSumiMode({
       scene,renderer,camera,guard:rendererGuard,worldRegion:region,
       // Wolfveil terrain is authored at local Z; the world offset is +70.
