@@ -64,6 +64,7 @@ export function createQuarryDragonBoss({
   loader, scene, bossEntities, setBosses, sampleGroundY,
   getPlayerPosition, applyPlayerDamage, onEngage,
   spawnPosition, onError = console.warn,
+  instanceId=DRAGON_BOSS_ID,encounterName='Quarry Dragon',site='quarry',
 } = {}) {
   if (!loader || !scene || !Array.isArray(bossEntities) || !spawnPosition) {
     throw new Error('Quarry dragon requires a GLTF loader, scene, boss registry and spawn position');
@@ -92,14 +93,14 @@ export function createQuarryDragonBoss({
   };
   const livingFire=createDragonLivingFireAttacks({
     scene,groundAt,getPlayer:validPlayer,applyPlayerDamage,
-    bossId:DRAGON_BOSS_ID,
+    bossId:instanceId,
   });
 
   function spawnModel(gltf) {
     if (disposed) return;
     try {
       const group = new THREE.Group();
-      group.name = 'Wolfveil Quarry Dragon Boss';
+      group.name = 'Wolfveil '+encounterName;
       const materials = prepareDragonScene(gltf.scene);
       group.add(gltf.scene);
       group.position.set(anchor.x, groundAt(anchor.x, anchor.z) ?? spawnPosition.y ?? 0, anchor.z);
@@ -114,15 +115,15 @@ export function createQuarryDragonBoss({
         idle.play(); // The hosted GLB has one MOTION track, not separate attack clips.
       }
       boss = {
-        id: DRAGON_BOSS_ID, bossDefinitionId: DRAGON_BOSS_ID,
-        name: 'Quarry Dragon', title: 'Living Elemental Storm', color: 0xc55f37,
+        id: instanceId, bossDefinitionId: DRAGON_BOSS_ID,
+        name: encounterName, title: 'Living Elemental Storm', color: 0xc55f37,
         isBoss: true, customMovement: true, group, mixer,
         alive: true, dying: false, defeated: false,
         deathAction: null, deathDuration: 2.4, deathTimer: 0, deathStarted: false,
         hp: maxHp, maxHp, hpTanks: 10, hpTankSize: Math.ceil(maxHp / 10),
         derived, level: 25, xpReward: 0, speed: 0,
         tintMaterials: materials, fadeMaterials: materials,
-        metadata: { region: 'wolfveil', site: 'quarry', attacks:['fire_rain','breath_stream','sky_cyclone','aerial_slam'], previewOnly: true },
+        metadata: { region: 'wolfveil', site, attacks:['fire_rain','breath_stream','sky_cyclone','aerial_slam'], previewOnly: true },
       };
       bossEntities.push(boss);
       setBosses?.(bossEntities);
@@ -161,7 +162,7 @@ export function createQuarryDragonBoss({
   function hitOnLanding() {
     const player = validPlayer();
     if (player && target && planarDistance(player, target) <= DRAGON_SLAM.impactRadius) {
-      applyPlayerDamage?.(DRAGON_SLAM.damage, { bossId: DRAGON_BOSS_ID, attack: 'aerial_slam' });
+      applyPlayerDamage?.(DRAGON_SLAM.damage, { bossId: instanceId, attack: 'aerial_slam' });
     }
     if (telegraph) telegraph.visible = false;
     phase = 'recover';
