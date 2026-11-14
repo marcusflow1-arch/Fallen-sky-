@@ -163,3 +163,26 @@ export const ATOMIC_SPARK_FRAGMENT=[
 ' float a=smoothstep(.42,.04,r)*vFade;',
 ' gl_FragColor=vec4(mix(vec3(0.,.8,1.),vec3(1.),vFade),a);',
 '}'].join('\n');
+
+
+// Small inverted-hull pass for a bounded number of nearby stone/architecture
+// meshes. Distinct from the Sobel pass (this is true expanded geometry).
+export const ATOMIC_HULL_VERTEX=[
+'uniform float uTime;',
+'varying vec3 vHullWorld;',
+'void main(){',
+' vec3 p=position+normal*.055;',
+' vec4 w=modelMatrix*vec4(p,1.);',
+' vHullWorld=w.xyz;',
+' gl_Position=projectionMatrix*viewMatrix*w;',
+'}'].join('\n');
+export const ATOMIC_HULL_FRAGMENT=[
+'uniform float uTime,uEnergyIntensity;',
+'varying vec3 vHullWorld;',
+'void main(){',
+' float stroke=sin(vHullWorld.y*11.0+vHullWorld.x*2.1-uTime*2.2);',
+' float filament=smoothstep(.69,.94,stroke);',
+' vec3 black=vec3(.005,.008,.018);',
+' vec3 glow=mix(vec3(.10,.40,1.),vec3(.92,.98,1.),filament);',
+' gl_FragColor=vec4(mix(black,glow,filament*uEnergyIntensity),1.);',
+'}'].join('\n');
