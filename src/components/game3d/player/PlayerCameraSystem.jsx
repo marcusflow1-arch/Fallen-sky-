@@ -6,6 +6,7 @@ import {
 } from '../../dashboard/lakesideManor/manorGame2Controls.mjs';
 import {GAME3D_GAME2_CAMERA,game3dToGame2Yaw} from './Game3DGame2Camera.mjs';
 import {getActiveCharacter} from '../characterStore';
+import {isAXEAutoTargetNearbyEnabled} from '../axe/player/AXEControlSettingsStore';
 import {getAbilityState,setTarget,clearTarget} from '../abilityStore';
 import {
   GAME3D_EVE_ADAM_AUTO_LOCK,isEveAdamGame3DHero,
@@ -76,7 +77,8 @@ export class PlayerCameraSystem {
     }};
   }
 
-  // Auto-lock is opt-in for the selected playable fused Eve/Adam rigs only.
+  // Auto-lock is explicitly opt-in through Controls, and defaults OFF.
+  // Mere proximity / enemy spawning must never take camera control.
   // Existing middle-click locks always take priority; no auto PvP targeting.
   // A manual middle-click that clears our own lock temporarily suspends auto
   // acquisition and excludes that same foe until it leaves retention range.
@@ -119,7 +121,8 @@ export class PlayerCameraSystem {
       this.autoLockLastRef=null;
     }
     const global=typeof window!=='undefined'?window:null;
-    const disabled=!global||!isEveAdamGame3DHero(model,getActiveCharacter())||
+    const disabled=!global||!isAXEAutoTargetNearbyEnabled()||
+      !isEveAdamGame3DHero(model,getActiveCharacter())||
       global.__axeUiModalOpen||global.__axeServiceModeOpen||
       global.__axeWorldMapOpen||global.__axePauseMenuOpen||
       global.__axeTileInspectionEditing||global.__game3dDedicatedMode||
