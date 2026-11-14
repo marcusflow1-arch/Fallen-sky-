@@ -10,14 +10,14 @@
 import { subscribeCharacterChange, userScopedKey } from '../../characterStorage';
 
 export const AXE_CONTROL_SETTINGS_KEY = 'axe_control_settings_v1';
-export const AXE_CONTROL_SETTINGS_DEFAULTS = Object.freeze({ clickToMove: false });
+export const AXE_CONTROL_SETTINGS_DEFAULTS = Object.freeze({ clickToMove: false, autoTargetNearby: false });
 
 const listeners = new Set();
 
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(userScopedKey(AXE_CONTROL_SETTINGS_KEY)) || 'null');
-    if (saved?.v === 1) return { clickToMove: saved.clickToMove === true };
+    if (saved?.v === 1) return { clickToMove: saved.clickToMove === true, autoTargetNearby: saved.autoTargetNearby === true };
   } catch {}
   return { ...AXE_CONTROL_SETTINGS_DEFAULTS };
 }
@@ -34,6 +34,15 @@ subscribeCharacterChange(() => { settings = load(); emit(); });
 export function getAXEControlSettings() { return { ...settings }; }
 
 export function isAXEClickToMoveEnabled() { return settings.clickToMove === true; }
+
+export function isAXEAutoTargetNearbyEnabled() { return settings.autoTargetNearby === true; }
+
+export function setAXEAutoTargetNearbyEnabled(enabled) {
+  settings = { ...settings, autoTargetNearby: enabled === true };
+  try { localStorage.setItem(userScopedKey(AXE_CONTROL_SETTINGS_KEY), JSON.stringify({ v: 1, ...settings })); } catch {}
+  emit();
+  return settings.autoTargetNearby;
+}
 
 export function setAXEClickToMoveEnabled(enabled) {
   settings = { ...settings, clickToMove: enabled === true };
