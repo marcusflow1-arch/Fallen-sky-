@@ -29,6 +29,8 @@ export function selectRoleWeapon(items, role, assignedId, activeId, resolver) {
   return active||(eligible.length===1?eligible[0]:null);
 }
 export function roleForCycle(roles,current,direction){
+  if(!Array.isArray(roles)||!roles.length)return null;
   const index=roles.indexOf(current);
-  return roles[(Math.max(0,index)+(direction<0?-1:1)+roles.length)%roles.length];
+  if(index<0)return direction<0?roles[roles.length-1]:roles[0];
+  return roles[(index+(direction<0?-1:1)+roles.length)%roles.length];
 }
