@@ -142,6 +142,8 @@ import {isInsideMeadowCircle,meadowGroundHeight}
 import {classifyBlazeBiome} from './render/BlazeBiomeLandscaping.mjs';
 import { buildGrassEnvironment } from './buildGrassEnvironment';
 import {createWolfveilVillage} from './wolfveil/WolfveilScene';
+import {createVortexLakeLandmark} from './wolfveil/VortexLakeScene.mjs';
+import {VORTEX_LAKE} from './wolfveil/VortexLakeLayout.mjs';
 import {installWolfveilImportedTown} from './wolfveil/WolfveilImportedTownScene.mjs';
 import {WOLFVEIL_PLAYER_TOWN_SPAWN,wolfveilQuestNpcSpot,insideWolfveilImportedTown} from './wolfveil/WolfveilImportedTownLayout.mjs';
 import {createWolfveilLivingMeadow} from './wolfveil/WolfveilLivingMeadow';
@@ -672,6 +674,15 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     // The owner's 80-tile assembled town is on the SAME authoritative terrain.
     // Loading errors never block the character or remove Wolfveil's ground.
     const importedSpawnTown=region==='wolfveil'?installWolfveilImportedTown(scene,{onReady:()=>{livingInkWorld?.refresh();for(const npc of questNPCs)snapToGround(npc.group,0);}}):null;
+    const vortexLake=region==='wolfveil'
+      ?createVortexLakeLandmark(scene,{
+        addGroundMesh:mesh=>groundMeshes.push(mesh),
+        removeGroundMesh:mesh=>{
+          const i=groundMeshes.indexOf(mesh);
+          if(i>=0)groundMeshes.splice(i,1);
+        },
+      }):null;
+    window.__gw3dVortexLake=vortexLake;
     const lunarGate = region==='wolfveil' ? createLunarMountainEntrance(scene,{sampleGroundY}) : null;
     const astralGate = region==='wolfveil' ? createAstralMountainGate(scene,{sampleGroundY}) : null;
     if(wolfveilVillage?.walkableSurfaces?.length) groundMeshes.push(...wolfveilVillage.walkableSurfaces);
@@ -1479,9 +1490,11 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
             isBlocked: (x,z) => isRuntimeFootprintBlocked({x,y:sampleGroundY(x,z) ?? 0,z},.75),
           }) : null;
       const returnSite=portalReturn==='astral'?ASTRAL_DUNGEON_ENTRANCE:LUNAR_CAVE_ENTRANCE;
+      const vortexReturn=portalReturn==='vortex'?VORTEX_LAKE.safeReturn:null;
       const returnPosition=region==='wolfveil'&&portalReturn ? {
-        x:returnSite.approachX,z:returnSite.approachZ,
-        y:sampleGroundY(returnSite.approachX,returnSite.approachZ) ?? 0.3,
+        x:vortexReturn?.x??returnSite.approachX,
+        z:vortexReturn?.z??returnSite.approachZ,
+        y:vortexReturn?.y??sampleGroundY(returnSite.approachX,returnSite.approachZ)??0.3,
       }:null;
       fbx.position.set(returnPosition?.x ?? workflowSpawn?.x ?? (region==='wolfveil'?WOLFVEIL_PLAYER_TOWN_SPAWN.x:0),
         returnPosition?.y ?? workflowSpawn?.y ?? 0.3,
@@ -2276,6 +2289,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         rangedClickAttackPressed.current=false;
         if(region!==ASTRAL_DUNGEON_REGION)envSystem.update(delta);
         wolfveilVillage?.update(delta,envSystem.getState(),modelRef.current?.position);importedSpawnTown?.update(delta);
+        vortexLake?.update(delta,null);
         livingInkWorld?.update(delta,envSystem.getState());
         playerAnim?.updateAnimation?.(delta);
         if(mixer)mixer.update(delta);
@@ -2305,6 +2319,9 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       if(region!==ASTRAL_DUNGEON_REGION)envSystem.update(delta);
       forestBiome?.update(delta, envSystem.getState(), modelRef.current?.position);
       wolfveilVillage?.update(delta,envSystem.getState(),modelRef.current?.position);importedSpawnTown?.update(delta);
+      const vortexTravel=vortexLake?.update(delta,modelRef.current?.position);
+      if(vortexTravel)
+        window.dispatchEvent(new CustomEvent('game3dPortalTravel',{detail:vortexTravel}));
       if(lunarGate?.update(delta,modelRef.current?.position))
         window.dispatchEvent(new CustomEvent('game3dPortalTravel',{detail:{target:LUNAR_CAVE_REGION}}));
       if(astralGate?.update(delta,modelRef.current?.position))
@@ -4098,6 +4115,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       forestBiome?.dispose();
       waterContact?.dispose();
       quarryDragon?.dispose();
+      vortexLake?.dispose();
+      if(window.__gw3dVortexLake===vortexLake)window.__gw3dVortexLake=null;
       livingInkWorld?.dispose();
       livingMeadow?.dispose();
       zombieCamps?.dispose();
