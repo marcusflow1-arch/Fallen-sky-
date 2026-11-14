@@ -67,6 +67,10 @@ test('the verified damage path is separate from reticle and bird visuals',()=>{
  assert.match(world,/if\(appliedDamage>0&&activeWeaponPath==='ranged'\)/);
  assert.match(world,/bowVisuals\.fire/);
  assert.match(world,/bowVisuals\.dispose/);
+ assert.match(world,/rangedClickAttackPressed\.current = (?:bowClick|getActiveWeaponPath\(\)==='ranged')/);
+ assert.match(world,/__gw3dBowOccluders=bowOccluders/);
+ assert.match(bridge,/const bowPriority=ranged\?resolveBowPriorityTarget\(\):null/);
+ assert.match(bridge,/window\.addEventListener\('blur',onBlur\)/);
  assert.match(bridge,/lastRangedBaseDamage<=0/);
  assert.match(bridge,/game3dVerifiedBowHit/);
  assert.match(bridge,/if\(ranged\)\{lastRangedBaseDamage=0;return false;\}/);
