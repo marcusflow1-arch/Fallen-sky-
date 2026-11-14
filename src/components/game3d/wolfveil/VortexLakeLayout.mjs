@@ -45,6 +45,19 @@ export function gradeVortexLakeBasin(x,z,originalHeight){
   }
   return result;
 }
+// Central lake and open under-mountain water cannot host terrestrial trees
+// or the game's existing GPU meadow. Separate from the wider shore grade so
+// grass/roots can still grow close to the waterline.
+export function isVortexLakeWetSurface(x,z,margin=0){
+  const wet=vortexLakeNormalizedRadius(x,z);
+  if(wet<=1+Math.max(0,margin)/Math.min(
+      VORTEX_LAKE.radiusX,VORTEX_LAKE.radiusZ))return true;
+  if(z>=344&&z<=397){
+    const mouthX=VORTEX_LAKE.mouthX+(z-358)*.10;
+    if(Math.abs(x-mouthX)<13+margin)return true;
+  }
+  return false;
+}
 export function vortexLakePortalCrossing(previous,position){
   if(!position||![position.x,position.z].every(Number.isFinite))return false;
   const x=position.x-VORTEX_LAKE.centerX,z=position.z-(VORTEX_LAKE.centerZ+70);
