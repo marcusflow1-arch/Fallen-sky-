@@ -14,6 +14,7 @@ import {
   ATOMIC_WORLD_VERTEX,ATOMIC_GRASS_VERTEX,ATOMIC_WORLD_FRAGMENT,
   ATOMIC_SCREEN_VERTEX,ATOMIC_SOBEL_FRAGMENT,ATOMIC_HEAT_FRAGMENT,
   ATOMIC_SPARK_VERTEX,ATOMIC_SPARK_FRAGMENT,
+  ATOMIC_HULL_VERTEX,ATOMIC_HULL_FRAGMENT,
 } from './atomicUltraSumiShaders.mjs';
 
 export const ATOMIC_ULTRA_SUMI = Object.freeze({
@@ -143,12 +144,41 @@ export function createAtomicUltraSumiMode({
   if(!scene||!renderer||!camera)throw Error('Atomic mode needs a Three.js scene, renderer, camera');
   const shared={time:{value:0},mode:{value:2},energy:{value:1},wind:{value:.52}};
   const materials=new Map(),originals=new Map(),size=new THREE.Vector2();
+  const hulls=[];let hullMaterial=null;
   let active=false,disposed=false,composer=null,ink=null,haze=null;
   let meadow=null,sparks=null,age=0,lastRefresh=-10,lastMeadow=-10;
   let qualitySetting=quality;
   function acquire(family){
     if(!materials.has(family))materials.set(family,shaderMaterial(family,shared));
     return materials.get(family);
+  }
+  function addHull(mesh,family){
+    // A small number of near-camera meshes receive a true inverted hull.
+    // Keep duplicate draw work bounded; silhouettes elsewhere use Sobel.
+    if(hulls.length>=24 || !mesh.isMesh || mesh.isSkinnedMesh ||
+        mesh.isInstancedMesh || (family!=='stone'&&family!=='architecture') ||
+        (mesh.geometry?.attributes?.position?.count??Infinity)>12000)return;
+    const near=new THREE.Vector3();
+    mesh.getWorldPosition(near);
+    if(near.distanceTo(camera.position)>65)return;
+    if(!hullMaterial){
+      hullMaterial=new THREE.ShaderMaterial({
+        name:'AtomicUltraSumi_InvertedHull',
+        uniforms:{uTime:shared.time,uEnergyIntensity:shared.energy},
+        vertexShader:ATOMIC_HULL_VERTEX,fragmentShader:ATOMIC_HULL_FRAGMENT,
+        side:THREE.BackSide,depthWrite:false,depthTest:true,
+        transparent:false,toneMapped:false,
+      });
+    }
+    const child=new THREE.Mesh(mesh.geometry,hullMaterial);
+    child.name='AtomicUltraSumi_InvertedHull';child.raycast=noRaycast;
+    child.userData.atomicUltraSumiOwned=true;child.renderOrder=mesh.renderOrder;
+    mesh.add(child);hulls.push({parent:mesh,child});
+  }
+  function clearHulls(){
+    for(const {parent,child} of hulls)parent.remove(child);
+    hulls.length=0;
+    hullMaterial?.dispose();hullMaterial=null;
   }
   function refresh(){
     if(!active)return;
@@ -157,6 +187,7 @@ export function createAtomicUltraSumiMode({
       const family=classify(mesh);if(!family)return;
       originals.set(mesh,mesh.material);
       mesh.material=acquire(family);
+      addHull(mesh,family);
     });
   }
   function restore(){
@@ -206,7 +237,7 @@ export function createAtomicUltraSumiMode({
     }else{
       meadow?.dispose();meadow=null;
       sparks?.dispose();sparks=null;
-      restore();
+      clearHulls();restore();
     }
   }
   function update(dt,position,weather={}){
