@@ -21,7 +21,7 @@ const now = () => typeof performance !== 'undefined' ? performance.now() : Date.
  * original GameWorld3D combat/AI ownership stay unchanged.
  */
 export function createQuestEnemySpawner({
-  scene, enemies, loader, snapToGround, walkClipPromise, idleClipPromise, setEnemyCount,
+  scene, camera, renderer, enemies, loader, snapToGround, walkClipPromise, idleClipPromise, setEnemyCount,
 }) {
   let disposed = false;
   let templatePromise = null;
@@ -187,14 +187,21 @@ export function createQuestEnemySpawner({
 
   // Start a single lazy load after entry has settled. If a quest starts first,
   // that same in-flight promise is reused, never five parallel FBX parses.
-  spawnQuestEnemies.prefetch = () => loadTemplate();
+  spawnQuestEnemies.prefetch = () => loadTemplate().then(async (asset) => {
+    if (!asset || disposed || typeof renderer?.compileAsync !== 'function' || !camera) return asset;
+    // Run once, during the idle prefetch, rather than starting a new GPU
+    // compilation burst when quest enemies are already attacking.
+    try { await renderer.compileAsync(asset.model, camera, scene); }
+    catch { /* GPU/browser support varies; gameplay can still proceed. */ }
+    return asset;
+  });
   if (typeof window !== 'undefined') {
     if (typeof window.requestIdleCallback === 'function') {
       idleType = 'idle';
-      idleHandle = window.requestIdleCallback(() => { idleHandle = null; void loadTemplate(); }, { timeout: 4500 });
+      idleHandle = window.requestIdleCallback(() => { idleHandle = null; void spawnQuestEnemies.prefetch(); }, { timeout: 4500 });
     } else {
       idleType = 'timer';
-      idleHandle = window.setTimeout(() => { idleHandle = null; void loadTemplate(); }, 2500);
+      idleHandle = window.setTimeout(() => { idleHandle = null; void spawnQuestEnemies.prefetch(); }, 2500);
     }
   }
 
