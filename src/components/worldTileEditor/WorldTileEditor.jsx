@@ -153,7 +153,8 @@ export default function WorldTileEditor({
       lines.renderOrder = 998;
       group.add(lines);
     }
-    const highlighted = mergeTileIds(grid, selected, preview, true);
+    // Selection overlays are editor-only; never paint review tiles in normal gameplay.
+    const highlighted = active ? mergeTileIds(grid, selected, preview, true) : [];
     if (highlighted.length) {
       const geometry = new THREE.PlaneGeometry(1, 1);
       const material = new THREE.MeshBasicMaterial({
