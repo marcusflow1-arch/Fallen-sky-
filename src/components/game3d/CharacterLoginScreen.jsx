@@ -21,6 +21,7 @@ import { getLivingChronicleIdentity } from './character/livingChronicleIdentity.
 import { getVisibleCrosslineSlots } from './character/characterCrossline.mjs';
 import { computeDerivedStats } from './statsSystem';
 import CharacterCreationModal from './CharacterCreationModal';
+import PauseMenu from './PauseMenu';
 import WorkflowTeleportPanel from './workflow/WorkflowTeleportPanel';
 import './CharacterLoginScreen.css';
 import './CharacterLoginWorldEntry.css';
@@ -99,7 +100,10 @@ export default function CharacterLoginScreen({ onPlay, onBack, workflowEnabled =
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [infoTab, setInfoTab] = useState('overview');
   const infoScrollRef = useRef(null);
-  const [motionEnabled, setMotionEnabled] = useState(true);
+  const [motionEnabled, setMotionEnabled] = useState(()=>{
+    try{return localStorage.getItem('game3d_menu_motion')!=='false';}
+    catch{return true;}
+  });
   const [workflowOpen, setWorkflowOpen] = useState(false);
   const [starting, setStarting] = useState(false);
   const [entering, setEntering] = useState(false);
@@ -307,25 +311,13 @@ export default function CharacterLoginScreen({ onPlay, onBack, workflowEnabled =
       {step==='start' && <button type="button" className="axe-login-entrance-settings"
         aria-label="Game 3D settings" aria-expanded={settingsOpen}
         onClick={() => setSettingsOpen(open => !open)}><Settings size={24}/></button>}
-      {settingsOpen && step==='start' && (
-        <section className="axe-login-settings axe-login-arcane-settings" aria-label="Game 3D settings">
-          <div className="axe-login-settings-heading"><strong>Game Settings</strong>
-            <button type="button" aria-label="Close settings" onClick={()=>setSettingsOpen(false)}><X size={18}/></button>
-          </div>
-          <label className="axe-login-setting-field">
-            <span>Music volume</span>
-            <input type="range" min="0" max="1" step="0.05"
-              value={initialMusicVolume}
-              onChange={event=>onMusicVolumeChange?.(Number(event.target.value))}/>
-          </label>
-          <label className="axe-login-setting-field">
-            <span>Animated glyphs</span>
-            <input type="checkbox" checked={motionEnabled}
-              onChange={event=>setMotionEnabled(event.target.checked)}/>
-          </label>
-          <p>System reduced-motion preferences are also respected.</p>
-        </section>
-      )}
+      <PauseMenu context="entry" open={settingsOpen && step==='start'}
+        onClose={()=>setSettingsOpen(false)}
+        volume={initialMusicVolume}
+        onVolumeChange={value=>onMusicVolumeChange?.(value)}
+        motionEnabled={motionEnabled}
+        onMotionChange={setMotionEnabled}
+      />
       {step!=='start' && step!=='creator' && <h1 className="axe-login-page-title">
         {step==='faction'?'Choose a Faction':'Select Your Character'}
       </h1>}
