@@ -6,10 +6,10 @@ import { publishOTSAim, setOTSAimRay } from './otsAimStore';
 
 const raycaster = new THREE.Raycaster();
 
-export function updateOTSAimFrame({ camera, aim, colliders, extraMeshes = [] }) {
+export function updateOTSAimFrame({ camera, aim, colliders, extraMeshes = [], bowEquipped = false, blocked = false }) {
   if (!aim) return null;
   aim.pollGamepad();
-  publishOTSAim({ aiming: aim.aiming, side: aim.side });
+  publishOTSAim({ aiming: aim.aiming, side: aim.side, bowEquipped, blocked });
   if (aim.blend <= 0.02 || !camera) {
     setOTSAimRay(null);
     return null;
