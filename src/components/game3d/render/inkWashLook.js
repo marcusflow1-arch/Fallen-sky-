@@ -17,7 +17,7 @@ import * as THREE from 'three';
 // (docs/game3d/SUMI_E_LOOK.md#cost)
 export const INK_LEVELS = Object.freeze({ off: 0, low: 1, medium: 2, high: 3, ultra: 4 });
 export const GRAPHICS_SETTINGS_KEY = 'game_graphics_settings';
-export const ART_STYLES = Object.freeze(['ink', 'original']);
+export const ART_STYLES = Object.freeze(['ink', 'original', 'atomic-ultra-sumi']);
 // sRGB 0..1
 export const INK_PALETTE = Object.freeze({ paper: [0.94, 0.91, 0.84], ink: [0.06, 0.055, 0.065], mist: [0.91, 0.9, 0.86] });
 export const INK_TUNING = Object.freeze({ colorKeep: 0.4, lineWidth: 1.6, mistNear: 40, mistFar: 600 });
