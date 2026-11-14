@@ -11,7 +11,6 @@ const tmp=new THREE.Vector3();
 const axis=new THREE.Vector3(0,0,1);
 const next=new THREE.Vector3();
 const prev=new THREE.Vector3();
-const pulse=new THREE.Vector3();
 
 function featherShape(right){
   const side=right?1:-1;
@@ -46,18 +45,19 @@ function makeBird(){
     mesh.rotation.x=.34;
     joint.add(mesh);root.add(joint);wings.push(joint);
   }
-  const glow=new THREE.Sprite(new THREE.SpriteMaterial({
-    color:0x86def4,opacity:.24,transparent:true,depthWrite:false,
+  const glowMaterial=new THREE.MeshBasicMaterial({
+    color:0x86def4,opacity:.13,transparent:true,depthWrite:false,
     blending:THREE.AdditiveBlending,
-  }));
-  glow.scale.set(1.55,.62,1);root.add(glow);
-  return {root,wings,materials:[bodyMaterial,wingMaterial,edgeMaterial]};
+  });
+  // A soft translucent oval, never an untextured screen-facing square.
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(.46,8,6),glowMaterial);
+  glow.scale.set(1.75,.30,.65);root.add(glow);
+  return {root,wings,materials:[bodyMaterial,wingMaterial,edgeMaterial,glowMaterial]};
 }
 function releaseBird(item,scene){
   scene.remove(item.bird.root);
   item.bird.root.traverse(node=>{if(node.geometry)node.geometry.dispose();});
   for(const material of item.bird.materials)material.dispose();
-  item.bird.root.children.find(n=>n.isSprite)?.material?.dispose();
 }
 function bezier(p0,p1,p2,p3,t,out){
   const k=1-t;
