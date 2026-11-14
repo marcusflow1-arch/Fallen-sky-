@@ -281,7 +281,9 @@ function resolveArrowBoss(_event) {
   const candidate=selectCameraBowTarget({
     camera,origin:origin||camera?.position,bosses:getLiveBosses(),
     maxRange:RANGED_ATTACK_RANGE,
-    groundMeshes:typeof window!=='undefined'?window.__gw3dBowOccluders:[],
+    groundMeshes:typeof window==='undefined'?[]:
+      typeof window.__gw3dBowOccluders==='function'?window.__gw3dBowOccluders():
+      window.__gw3dBowOccluders||[],
   });
   return candidate?.target||null;
 }
@@ -425,7 +427,9 @@ export function dispatchRogueAttack(playerDerivedRef, skillStrikeMult = 1.0) {
   const alignedRogue=ranged?selectCameraBowTarget({
     camera,origin:origin||camera?.position,enemies:rogues,
     maxRange:RANGED_ATTACK_RANGE,
-    groundMeshes:typeof window!=='undefined'?window.__gw3dBowOccluders:[],
+    groundMeshes:typeof window==='undefined'?[]:
+      typeof window.__gw3dBowOccluders==='function'?window.__gw3dBowOccluders():
+      window.__gw3dBowOccluders||[],
     lockedEnemyId:target?.kind==='rogue'?target.id:null,
   })?.target:null;
   const rogue=ranged?alignedRogue:
