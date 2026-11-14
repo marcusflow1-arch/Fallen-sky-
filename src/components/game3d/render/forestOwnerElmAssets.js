@@ -5,6 +5,7 @@
 // shared instanced draw calls. Game 2 intentionally never imports this code.
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {classifyTreeMaterialPart} from './LivingTreeWindPhysics.mjs';
 
 // Only foreground deciduous trees get the heavyweight original model.
 // Unmodified procedural pine/trees provide a safe fallback when the asset is
@@ -105,12 +106,19 @@ export function installGame1OwnerElms(scene,trees,onReady,selection=selectOwnerE
         group.traverse(object=>{
           if(!object.isMesh) return;
           const importedMat=object.material;
-          if(/leaf/i.test(object.name) && importedMat){
-            // The source's actual leaf texture remains in place.
-            applyPbrWind(importedMat,uniform);
+          if(/leaf|foliage|canopy/i.test(object.name)){
+            // Keep the GLB's original UVs, alpha leaf maps and wind hook.
+            for(const material of Array.isArray(importedMat)?importedMat:[importedMat])
+              if(material)applyPbrWind(material,uniform);
           }
           const inst=new THREE.InstancedMesh(object.geometry,importedMat,placements.length);
           inst.name='Game 1 ORIGINAL uploaded elm / '+name+' / '+object.name;
+          inst.userData.blazeTreeFamily=classifyTreeMaterialPart(
+            object.name+' '+(Array.isArray(importedMat)
+              ?importedMat.map(m=>m?.name||'').join(' ')
+              :(importedMat?.name||'')),'foliage');
+          inst.userData.blazeTreeUpAxis='z'; // original elm GLB is Z-up
+          inst.userData.blazeImportedOwnerTree=true;
           inst.frustumCulled=false; // tight culling requires an instance BVH
           inst.castShadow=/bark/i.test(object.name);inst.receiveShadow=true;
           const authored=object.matrixWorld.clone();
@@ -135,6 +143,8 @@ export function installGame1OwnerElms(scene,trees,onReady,selection=selectOwnerE
       state.selected=new Set(selected);
       state.status='ready';
       onReady?.(state.selected);
+      if(typeof window!=='undefined')
+        window.dispatchEvent(new Event('axe:owner-tree-ready'));
     }catch(err){
       for(const obj of added){scene.remove(obj);obj.dispose();}
       state.error=String(err?.message||err);
