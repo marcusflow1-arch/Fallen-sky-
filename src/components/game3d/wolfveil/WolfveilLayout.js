@@ -1,6 +1,7 @@
 import {gradeWolfveilImportedTown} from './WolfveilImportedTownLayout.mjs';
 import {gradeWolfveilPalaceTerrain,gradeWolfveilPalaceRearMountain,WOLFVEIL_PALACE_REAR_MOUNTAIN} from './WolfveilPalaceGround.mjs';
 import {gradeWolfveilRiverbank} from './WolfveilRiverBanks.mjs';
+import {gradeVortexLakeBasin} from './VortexLakeLayout.mjs';
 import {createWolfveilBridgeBankTerrainGrade} from './WolfveilBridgeBankTerrain.mjs';
 import {gradeWolfveilWestHillside} from './WolfveilWestHillside.mjs';
 // Shadow Wolf Homeland — Wolfveil Valley master blockout.
@@ -32,6 +33,7 @@ export const WOLFVEIL_SITES=Object.freeze({
   wolfEars:{id:'wolfveil_twin_peaks',x:2,z:470,kind:'mountain',label:'Split Wolf-Ear Peaks'},
   waterfall:{id:'wolfveil_high_waterfall',x:142,z:179,kind:'water',label:'Hidden Waterfall'},
   waterfallCave:{id:'wolfveil_waterfall_cave',x:163,z:155,kind:'cave',label:'Secret Cave Behind Falls'},
+  vortexLake:{id:'wolfveil_living_perspectives_vortex',x:205,z:320,kind:'water',label:'The World Beneath the World'},
   cedarForest:{id:'wolfveil_cedar_forest',x:-320,z:65,kind:'forest',label:'Western Cedar Forest'},
   training:{id:'wolfveil_training',x:-165,z:88,kind:'training',label:'Shadow Wolf Training Grounds'},
   quarry:{id:'wolfveil_quarry',x:350,z:-40,kind:'encounter',label:'Abandoned Stone Quarry'},
@@ -231,6 +233,10 @@ export function wolfveilNaturalHeight(x,z){
   // Unlike a Z-only approximation, the waterline follows river bends.
   y=gradeWolfveilRiverbank(x,z,y,WOLFVEIL_RIVER.points,WOLFVEIL_RIVER.width);
   y=gradeWolfveilLunarCaveApproach(x,z,y,river);
+  // Clone-only living-water basin and an open daylight-height mountain mouth.
+  // Applied to this same analytical terrain before BVH generation and
+  // walking/foot raycasts. No extra false-floor body is introduced.
+  y=gradeVortexLakeBasin(x,z,y);
   // Keep key public locations and village foundations predictable without
   // erasing organic terrain globally.
   for(const location of [WOLFVEIL_SITES.market,WOLFVEIL_SITES.southGate,
