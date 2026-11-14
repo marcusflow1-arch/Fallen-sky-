@@ -5,6 +5,7 @@ import {game3dPauseGraphicsDefaults} from '../src/components/game3d/game3dPauseM
 import {
   ATOMIC_WORLD_VERTEX,ATOMIC_GRASS_VERTEX,ATOMIC_WORLD_FRAGMENT,
   ATOMIC_SOBEL_FRAGMENT,ATOMIC_HEAT_FRAGMENT,ATOMIC_SPARK_VERTEX,
+  ATOMIC_HULL_VERTEX,ATOMIC_HULL_FRAGMENT,
 } from '../src/components/game3d/render/atomicUltraSumiShaders.mjs';
 
 const source=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
@@ -60,6 +61,10 @@ test('Sobel, selective bloom and heat haze use a post-processing pass',()=>{
   assert.match(mode,/bloomThreshold:\.72/);
   assert.match(mode,/bloomStrength:1\.35/);
   assert.match(mode,/bloomRadius:\.55/);
+  assert.match(ATOMIC_HULL_VERTEX,/position\+normal\*\.055/);
+  assert.match(ATOMIC_HULL_FRAGMENT,/vHullWorld\.y\*11\.0/);
+  assert.match(mode,/side:THREE\.BackSide/);
+  assert.match(mode,/hulls\.length>=24/);
   assert.match(ATOMIC_SOBEL_FRAGMENT,/texture2D/);
   assert.match(ATOMIC_HEAT_FRAGMENT,/vUv\.y\*25\.0-uTime\*4\.0/);
 });
