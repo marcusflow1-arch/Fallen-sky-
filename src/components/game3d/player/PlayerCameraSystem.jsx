@@ -5,12 +5,7 @@ import {
   manorGame2EaseCameraClip,
 } from '../../dashboard/lakesideManor/manorGame2Controls.mjs';
 import {GAME3D_GAME2_CAMERA,game3dToGame2Yaw} from './Game3DGame2Camera.mjs';
-import {getActiveCharacter} from '../characterStore';
-import {getAbilityState,setTarget,clearTarget} from '../abilityStore';
-import {
-  GAME3D_EVE_ADAM_AUTO_LOCK,isEveAdamGame3DHero,
-  isAutoLockEnemyValid,chooseEveAdamAutoTarget,makeEveAdamAutoLockTarget,
-} from './Game3DAutoTargetLock.mjs';
+import {getAbilityState,clearTarget} from '../abilityStore';
 
 const tmpCamera=new THREE.Vector3();
 const tmpTarget=new THREE.Vector3();
@@ -32,13 +27,6 @@ export class PlayerCameraSystem {
     this.groundRaycaster=new THREE.Raycaster();
     this.followTarget=null;
     this.clipDistance=null;
-    this.autoLockModel=null;
-    this.autoLockAge=0;
-    this.autoLockScanAge=0;
-    this.autoLockManagedId=null;
-    this.autoLockLastRef=null;
-    this.autoLockSuppressId=null;
-    this.autoLockPause=0;
 
     // Preserve the existing battle-specific target framing and safety caps.
     this.combatDistance=AXE_WORLD_SCALE.camera.combatDistance;
@@ -76,118 +64,23 @@ export class PlayerCameraSystem {
     }};
   }
 
-  // Auto-lock is opt-in for the selected playable fused Eve/Adam rigs only.
-  // Existing middle-click locks always take priority; no auto PvP targeting.
-  // A manual middle-click that clears our own lock temporarily suspends auto
-  // acquisition and excludes that same foe until it leaves retention range.
-  updateEveAdamAutoLock(delta,model){
-    if(!model?.position||!this.lockOnTargetRef)return;
-    const dt=Number.isFinite(delta)?Math.max(0,Math.min(delta,.12)):0;
-    if(model!==this.autoLockModel){
-      // Character selection can replace Eve with Adam in the same world.
-      // An old automatically acquired foe must not follow the new avatar.
-      const previous=this.lockOnTargetRef.current;
-      if(previous?.autoAcquired){
-        this.lockOnTargetRef.current=null;
-        if(getAbilityState()?.target?.kind!=='player' &&
-           String(getAbilityState()?.target?.id)===String(previous.id))
-          clearTarget();
-      }
-      this.autoLockModel=model;
-      this.autoLockAge=0;
-      this.autoLockScanAge=0;
-      this.autoLockManagedId=null;
-      this.autoLockLastRef=null;
-      this.autoLockSuppressId=null;
-      this.autoLockPause=0;
-    }
-    this.autoLockAge+=dt;
-    this.autoLockPause=Math.max(0,this.autoLockPause-dt);
-    const current=this.lockOnTargetRef.current;
-    if(this.autoLockManagedId!==null && current!==this.autoLockLastRef){
-      // Only a user/manual handler can replace or clear our live managed ref.
-      if(!current){
-        this.autoLockSuppressId=this.autoLockManagedId;
-        this.autoLockPause=2;
-        // Manual middle-click on the already auto-locked foe clears the
-        // camera ref. Clear its stale HP bar too; keep PvP selections intact.
-        const selected=getAbilityState()?.target;
-        if(selected&&selected.kind!=='player'&&
-           String(selected.id)===this.autoLockManagedId)clearTarget();
-      }
-      this.autoLockManagedId=null;
-      this.autoLockLastRef=null;
-    }
-    const global=typeof window!=='undefined'?window:null;
-    const disabled=!global||!isEveAdamGame3DHero(model,getActiveCharacter())||
-      global.__axeUiModalOpen||global.__axeServiceModeOpen||
-      global.__axeWorldMapOpen||global.__axePauseMenuOpen||
-      global.__axeTileInspectionEditing||global.__game3dDedicatedMode||
-      global.__activeDuel||typeof document!=='undefined'&&document.hidden;
-    const release=(target)=>{
-      if(this.lockOnTargetRef.current!==target)return;
-      this.lockOnTargetRef.current=null;
-      this.autoLockManagedId=null;
-      this.autoLockLastRef=null;
-      // Do not erase a manually selected player or a changed ability target.
-      const selected=getAbilityState()?.target;
-      if(selected&&selected.kind!=='player'&&
-          String(selected.id)===String(target.id))clearTarget();
-    };
-    if(disabled){
-      if(current?.autoAcquired)release(current);
-      return;
-    }
-    if(this.autoLockSuppressId!==null){
-      const candidates=[
-        ...(Array.isArray(global.__gw3dEnemies)?global.__gw3dEnemies:[]),
-        ...(Array.isArray(global.__gw3dBosses)?global.__gw3dBosses:[]),
-        ...(Array.isArray(global.__gw3dRogues)?global.__gw3dRogues:[]),
-      ];
-      const ex=candidates.find(e=>String(e?.id)===this.autoLockSuppressId);
-      if(!isAutoLockEnemyValid(ex,model.position))
-        this.autoLockSuppressId=null;
-    }
-    if(current?.autoAcquired){
-      if(isAutoLockEnemyValid(current.sourceEnemy,model.position))return;
-      release(current); // dead, hidden, out of reach: camera returns to follow.
-    }else if(current){
-      return; // user-selected enemy or player must never be overwritten
-    }
-    if(this.autoLockAge<GAME3D_EVE_ADAM_AUTO_LOCK.enterDelaySeconds||
-        this.autoLockPause>0)return;
-    this.autoLockScanAge+=dt;
-    if(this.autoLockScanAge<GAME3D_EVE_ADAM_AUTO_LOCK.scanIntervalSeconds)
-      return;
-    this.autoLockScanAge=0;
-    const target=chooseEveAdamAutoTarget({
-      origin:model.position,yaw:this.orbit.current.yaw,
-      enemies:global.__gw3dEnemies,bosses:global.__gw3dBosses,
-      rogues:global.__gw3dRogues,
-      excludeIds:this.autoLockSuppressId===null?[]:[this.autoLockSuppressId],
-    });
-    if(!target)return;
-    const category=(global.__gw3dBosses||[]).includes(target)?'boss':
-      (global.__gw3dRogues||[]).includes(target)?'rogue':'enemy';
-    const lock=makeEveAdamAutoLockTarget(target,category);
-    if(!lock)return;
-    this.lockOnTargetRef.current=lock;
-    this.autoLockLastRef=lock;
-    this.autoLockManagedId=String(lock.id);
-    // Use the existing compact upper-right HP rail, without making attacks,
-    // moving the player, awarding damage or altering worker PvP authority.
-    setTarget({
-      id:lock.id,name:lock.name,kind:lock.kind,
-      hp:target.hp,maxHp:target.maxHp,level:target.level,
-      bossName:target.bossName||null,tier:target.tier||lock.kind,
-    });
-  }
+  // Lock-on is entirely player initiated: an explicit left click on a visible
+  // actor, or middle click along the character's narrow facing line.
+  // No proximity acquisition or automatic camera snap runs in this update.
 
   update(delta,movementIntent={}){
     const model=this.modelRef.current;
     if(!model)return;
     const dt=Number.isFinite(delta)?Math.max(0,Math.min(delta,.12)):0;
-    this.updateEveAdamAutoLock(dt,model);
+    // Recover from an old hot-reloaded automatic lock, if one was left in
+    // memory by a previous build. Never clear a manually chosen target.
+    const inherited = this.lockOnTargetRef?.current;
+    if (inherited?.autoAcquired) {
+      this.lockOnTargetRef.current = null;
+      const selected = getAbilityState()?.target;
+      if (selected?.kind !== 'player' &&
+          String(selected?.id) === String(inherited.id)) clearTarget();
+    }
     const o=this.orbit.current;
     const lockedTarget=this.lockOnTargetRef.current;
     if(lockedTarget?.group&&(!lockedTarget.aliveRef||lockedTarget.aliveRef())){
@@ -229,7 +122,12 @@ export class PlayerCameraSystem {
       return;
     }
 
-    if(lockedTarget)this.lockOnTargetRef.current=null;
+    if (lockedTarget) {
+      this.lockOnTargetRef.current = null;
+      const selected = getAbilityState()?.target;
+      if (selected && String(selected.id) === String(lockedTarget.id) &&
+          selected.kind === lockedTarget.kind) clearTarget();
+    }
     if(!Number.isFinite(o.yaw))o.yaw=0;
     if(!Number.isFinite(o.pitch))o.pitch=GAME3D_GAME2_CAMERA.pitch;
     const pos=model.position;

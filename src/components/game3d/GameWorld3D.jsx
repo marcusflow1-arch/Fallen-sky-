@@ -339,7 +339,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
   const playerInvulTimer = useRef(0);
   const nearbyQuestNPCRef = useRef(null);
   // Master visibility flag for all non-boss entities on the map (quest NPCs,
-  // mutant enemies, companion). Hidden by default; press '=' to toggle back.
+  // mutant enemies, companion). Hidden by default; the dedicated scene-debug command can toggle them.
   const npcsVisibleRef = useRef(region === 'wolfveil' || region === LUNAR_CAVE_REGION);
   const playerLevelStateRef = useRef(1); // kept in sync with playerLevel for quest gating
 
@@ -1672,7 +1672,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     ];
     // A left click on walkable ground nearer than any enemy, NPC or player sets the move target.
     // Anything else (an enemy, the sky, a click while a WASD key is held) stays the click attack.
-    // Whether clicking an enemy should also lock on and attack is owner decision D9 (not built).
+    // Left clicking a character now explicitly selects it before the attack/movement path.
     const tryClickToMove = (e) => {
       if (!model || AXE_CLICK_TO_MOVE_CONFIG.movementKeys.some((k) => keys.current[k])) return false;
       const pick = pickAXEClickToMoveGround({ event: e, element: renderer.domElement, camera, groundMeshes, entityRoots: getClickEntityRoots() });
@@ -1904,9 +1904,10 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const pickContextActor = (event) => {
       const bounds = renderer.domElement.getBoundingClientRect();
       if (!bounds.width || !bounds.height) return null;
+      const captured = document.pointerLockElement === renderer.domElement;
       contextRay.setFromCamera({
-        x: ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-        y: -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
+        x: captured ? 0 : ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+        y: captured ? 0 : -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
       }, camera);
       const remoteHits = contextRay.intersectObjects(remoteManagerRef.current?.getMeshes?.() || [], false);
       const mount = !isMountedRef.current && companionGroupRef.current?.visible
@@ -1927,15 +1928,36 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const onMouseDown = (e) => {
       if (entryModeRef.current || entryCamera.isActive()) return;
       if (window.__axeUiModalOpen || window.__axeServiceModeOpen || window.__axeWorldMapOpen || window.__axePauseMenuOpen || window.__axeDialogueOpen) return;
-      // Left click = attack, middle click = Lock-On, right click = camera drag (+ block if no drag)
+      // Only a deliberate character click or middle-mouse press creates
+      // a lock. Walking within range never creates one.
+      const npcCandidates = [
+        ...questNPCs,
+        ...(livingQuestEntity?.group ? [{
+          id: 'living_quest_npc', name: 'Living Quest NPC',
+          group: livingQuestEntity.group,
+        }] : []),
+      ];
       if (e.button === 0) {
-        if (altCursorHeld.current) { e.preventDefault(); return; }
+        // With Alt held the cursor is available for selecting an actor.
+        // Without Alt, center-screen clicks still select the actor being aimed
+        // at and otherwise continue through the existing attack/click-move path.
+        const target = handleMiddleClick({
+          event: e, renderer, camera, enemies,
+          remoteManager: remoteManagerRef.current,
+          rogues: window.__gw3dRogues || [], bosses: bossEntities,
+          npcs: npcCandidates, mode: 'cursor',
+          currentTarget: lockOnTargetRef.current,
+          clearOnMiss: false, toggleOnSame: false,
+        });
+        if (target) lockOnTargetRef.current = target;
+        if (altCursorHeld.current || (target && isAXEClickToMoveEnabled())) {
+          e.preventDefault();
+          return;
+        }
         if (isAXEClickToMoveEnabled() && tryClickToMove(e)) { e.preventDefault(); return; }
         rangedClickAttackPressed.current = true;
         attackPressed.current = true;
-        // Like Luna's Game 2 exploration: a click in the 3D viewport locks
-        // free-look. Keep left attack and optional click-to-move intact.
-        // Embedded previews can refuse pointer lock; right-drag still works.
+        // Preserve standard attacks and pointer-lock camera control.
         if (!isAXEClickToMoveEnabled() &&
             document.pointerLockElement !== renderer.domElement) {
           try {
@@ -1946,22 +1968,31 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         e.preventDefault();
       } else if (e.button === 1) {
         e.preventDefault();
-        const target = handleMiddleClick({ event: e, renderer, camera, enemies, remoteManager: remoteManagerRef.current, setPlayerMenu, rogues: window.__gw3dRogues || [], bosses: bossEntities });
-        lockOnTargetRef.current = target && lockOnTargetRef.current?.id !== target.id ? target : null;
+        // Pressing (not scrolling) the mouse wheel aims along a thin forward
+        // line, even when the cursor is locked or the enemy is hard to click.
+        lockOnTargetRef.current = handleMiddleClick({
+          event: e, renderer, camera, enemies,
+          remoteManager: remoteManagerRef.current,
+          rogues: window.__gw3dRogues || [], bosses: bossEntities,
+          npcs: npcCandidates, groundMeshes,
+          mode: 'facing', origin: modelRef.current?.position,
+          yaw: orbit.current.yaw,
+          currentTarget: lockOnTargetRef.current,
+          clearOnMiss: true, toggleOnSame: true,
+        });
       } else if (e.button === 2) {
-        // Right-click a visible player or your mount with the cursor freed.
-        // On empty space, retain the existing right-drag camera / short guard.
-        if (altCursorHeld.current || e.altKey ||
-            document.pointerLockElement !== renderer.domElement) {
-          const picked = pickContextActor(e);
-          if (picked) {
-            e.preventDefault();
-            drag.current.active = false;
-            setPlayerMenu({ ...picked });
-            return;
-          }
+        // Cursor-free right click selects the actual pet/mount or remote
+        // player. With pointer lock the center reticle is used instead.
+        const picked = pickContextActor(e);
+        if (picked) {
+          e.preventDefault();
+          drag.current.active = false;
+          rightDragMoved.current = false;
+          document.exitPointerLock?.();
+          setPlayerMenu({ ...picked });
+          return;
         }
-        // Start camera drag on right-click
+        // Empty right-click preserves orbit/guard.
         drag.current.active = true;
         drag.current.x = e.clientX;
         drag.current.y = e.clientY;
@@ -2226,7 +2257,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       // Revert additive gesture poses before the normal Mixers update.
       echoGestureRuntime.preUpdate();
       impactFeedback.preUpdate(); // restore additive bone recoil before enemy Mixers pose
-      const npcsVisible = npcsVisibleRef.current; // '=' toggles all non-boss entities (NPCs/enemies/companion)
+      const npcsVisible = npcsVisibleRef.current; // non-boss entity scene visibility diagnostic
       if(region!==ASTRAL_DUNGEON_REGION)envSystem.update(delta);
       forestBiome?.update(delta, envSystem.getState(), modelRef.current?.position);
       wolfveilVillage?.update(delta,envSystem.getState(),modelRef.current?.position);importedSpawnTown?.update(delta);
@@ -3695,14 +3726,27 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         });
         setQuestNPCsUI(qUI);
 
-        // ─── Sync live target HP to abilityStore ───
+        // ─── Sync explicit lock HP without discarding NPC/player locks ───
+        // The old enemy-only lookup erased every player, NPC, boss or rogue
+        // selection on the very next frame. Those are valid manual targets.
         const currentTarget = getAbilityState().target;
         if (currentTarget) {
-          const te = enemies.find((e) => e.id === currentTarget.id);
-          if (te && te.alive && !te.dying) {
-            updateTargetHP(te.id, Math.max(0, te.hp));
-          } else if (!te || !te.alive || te.dying) {
+          const activeLock = lockOnTargetRef.current;
+          const sameLock = activeLock && String(activeLock.id) === String(currentTarget.id) &&
+            activeLock.kind === currentTarget.kind;
+          if (sameLock && activeLock.aliveRef?.() === false) {
+            lockOnTargetRef.current = null;
             clearTarget();
+          } else if (currentTarget.kind !== 'npc' && currentTarget.kind !== 'player') {
+            const te = [
+              ...enemies, ...bossEntities, ...(window.__gw3dRogues || []),
+            ].find(e => String(e.id) === String(currentTarget.id));
+            if (te?.alive && !te.dying && !te.defeated) {
+              updateTargetHP(te.id, Math.max(0, te.hp));
+            } else if (!te || !te.alive || te.dying || te.defeated) {
+              if (sameLock) lockOnTargetRef.current = null;
+              clearTarget();
+            }
           }
         }
 
