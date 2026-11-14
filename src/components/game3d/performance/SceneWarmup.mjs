@@ -78,6 +78,23 @@ export function createGame3DSceneWarmup({
     }
   }
 
+  function activeCombatShouldOwnFrameBudget() {
+    // Precompilation / texture uploads can be expensive even when the JS task
+    // runs in requestIdleCallback. Never compete with active melee or a quest
+    // wave already spawning within immediate combat distance.
+    const current = host.__localPlayerPos;
+    const list = host.__gw3dEnemies;
+    if (!current || !Array.isArray(list)) return false;
+    return list.some((enemy) => {
+      if (!enemy?.alive || enemy.dying || enemy.group?.visible === false) return false;
+      if (enemy.aiEngaged || enemy.attacking) return true;
+      if (!enemy.isQuestSpawn || !enemy.group?.position) return false;
+      const dx = enemy.group.position.x - current.x;
+      const dz = enemy.group.position.z - current.z;
+      return dx * dx + dz * dz < 35 * 35;
+    });
+  }
+
   function scanSlice() {
     if (!stack.length) {
       if (Date.now() < nextScanAt) return;
@@ -110,7 +127,8 @@ export function createGame3DSceneWarmup({
     handle = null;
     if (disposed) return;
     // Invisible tabs and a lost context are not useful shader warmup targets.
-    if (documentRef?.hidden || renderer.getContext?.()?.isContextLost?.()) {
+    if (documentRef?.hidden || renderer.getContext?.()?.isContextLost?.() ||
+        activeCombatShouldOwnFrameBudget()) {
       schedule();
       return;
     }
