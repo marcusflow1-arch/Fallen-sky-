@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import {base44} from '@/api/base44Client';
 import {inkPaletteFor} from './render/inkWashLook';
-import {getAXEControlSettings, setAXEClickToMoveEnabled,
+import {getAXEControlSettings, setAXEClickToMoveEnabled, setAXEAutoTargetNearbyEnabled,
   subscribeAXEControlSettings} from './axe/player/AXEControlSettingsStore';
 import {GAME3D_PAUSE_SECTIONS,game3dPauseEscape,
   game3dPauseGraphicsDefaults} from './game3dPauseMenuModel.mjs';
@@ -23,6 +23,7 @@ const CONTROL_KEYS=[
   {keys:'R',action:'Forward roll (uses dodge stamina)'},
   {keys:'Double-tap WASD',action:'Directional dodge (uses dodge stamina)'},
   {keys:'Mouse',action:'Look and aim'},
+  {keys:'Middle-click',action:'Manually lock onto or release a target'},
   {keys:'E',action:'Interact with the world'},
   {keys:'TAB',action:'Open the store'},
   {keys:'C',action:'Character hub'},
@@ -262,6 +263,9 @@ export default function PauseMenu({
                   <Switch label="Click to move" checked={controls.clickToMove}
                     description="Click the ground to walk there. WASD cancels the destination."
                     onChange={()=>setAXEClickToMoveEnabled(!controls.clickToMove)}/>
+                  <Switch label="Automatically lock nearby enemies" checked={controls.autoTargetNearby}
+                    description="Off by default. Leave off to keep camera and movement independent of enemy spawns; middle-click still locks targets manually."
+                    onChange={()=>setAXEAutoTargetNearbyEnabled(!controls.autoTargetNearby)}/>
                 </div>
                 <div className="axe3d-pause__surface">
                   <h4 className="axe3d-pause__subhead">Quick reference</h4>
