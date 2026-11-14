@@ -10,7 +10,7 @@ import {inkPaletteFor} from './render/inkWashLook';
 import {getAXEControlSettings, setAXEClickToMoveEnabled, setAXEAutoTargetNearbyEnabled,
   subscribeAXEControlSettings} from './axe/player/AXEControlSettingsStore';
 import {GAME3D_PAUSE_SECTIONS,game3dPauseEscape,
-  game3dPauseGraphicsDefaults} from './game3dPauseMenuModel.mjs';
+  game3dPauseGraphicsDefaults,activateCloneUltraWorldGraphics} from './game3dPauseMenuModel.mjs';
 import './PauseMenu.css';
 
 const MENU_ICONS={overview:Gamepad2,audio:AudioLines,controls:Keyboard,
@@ -63,12 +63,9 @@ export default function PauseMenu({
   const [confirmAction,setConfirmAction]=useState(null);
   const [error,setError]=useState('');
   const [controls,setControls]=useState(getAXEControlSettings);
-  const [graphics,setGraphics]=useState(()=>{
-    let saved=null;
-    try{saved=JSON.parse(localStorage.getItem('game_graphics_settings')||'null');}
-    catch{/* local settings may be unavailable */}
-    return game3dPauseGraphicsDefaults(saved);
-  });
+  const [graphics,setGraphics]=useState(()=>
+    activateCloneUltraWorldGraphics(
+      typeof localStorage==='undefined'?null:localStorage));
   const [menuMotion,setMenuMotion]=useState(()=>{
     try{return localStorage.getItem('game3d_menu_motion')!=='false';}
     catch{return true;}
@@ -99,8 +96,7 @@ export default function PauseMenu({
     window.dispatchEvent(new Event('axePauseMenuOpened'));
     if(document.pointerLockElement)document.exitPointerLock?.();
     // Refresh the same graphics settings written from either entry or in-world.
-    try{setGraphics(game3dPauseGraphicsDefaults(
-      JSON.parse(localStorage.getItem('game_graphics_settings')||'null')));}
+    try{setGraphics(activateCloneUltraWorldGraphics(localStorage));}
     catch{setGraphics(game3dPauseGraphicsDefaults(null));}
     resumeRef.current?.focus();
     return ()=>{window.__axePauseMenuOpen=false;};
@@ -321,9 +317,14 @@ export default function PauseMenu({
                 <div className="axe3d-pause__surface">
                   <OptionButtons label="Visual style" value={graphics.artStyle}
                     items={[{id:'original',text:'Classic'},{id:'ink',text:'Sumi-e Ink Wash'},
-                      {id:'atomic-ultra-sumi',text:'ULTRA MAX · Atomic Ultra-Sumi'}]}
+                      {id:'atomic-ultra-sumi',text:'ULTRA MAX · Living Ultra-Sumi'}]}
                     onPick={artStyle=>changeGraphics({...graphics,artStyle})}/>
-                  {graphics.artStyle==='atomic-ultra-sumi'&&<p className="axe3d-pause__help">Experimental pure GLSL plasma, silver edges, GPU grass and bloom. Higher GPU cost; switch back instantly.</p>}
+                  {graphics.artStyle==='atomic-ultra-sumi'&&<p className="axe3d-pause__help">
+                      ON by default in the clone: world-wide living-energy grass, flowing
+                      jade/cobalt/violet Sumi-e tree material and 3× taller flame blades.
+                      Existing character, roads, buildings and terrain keep their colors.
+                      No full-screen white bloom or duplicate game physics.
+                    </p>}
                   {graphics.artStyle==='ink'&&<>
                     <OptionButtons label="Ink color profile" value={inkPaletteFor(graphics)}
                       items={[{id:'vibrant',text:'Vibrant Color'},{id:'classic',text:'Classic Ink'}]}
