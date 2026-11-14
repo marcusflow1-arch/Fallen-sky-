@@ -94,7 +94,7 @@ function WeaponStack({ playerLevel }) {
       setNotice(getOwnedWeaponsForAXERole(role).length
         ? `Choose a weapon for the ${ROLE_TITLES[role]} slot`
         : 'No weapons in your inventory yet');
-      return;
+      return false;
     }
     const result=drawAXEHUDWeaponRole(role,{level:playerLevel||1});
     if(result.ok){
@@ -104,6 +104,7 @@ function WeaponStack({ playerLevel }) {
     } else {
       setNotice(result.message||result.reason?.replace(/_/g,' ')||'Weapon unavailable');
     }
+    return result.ok === true;
   },[playerLevel]);
 
   const assignAndDraw=useCallback((role,id)=>{
@@ -127,10 +128,8 @@ function WeaponStack({ playerLevel }) {
         inferAXEWeaponRole(getActiveEquippedAXEWeapon()));
     for(let i=0;i<roles.length;i++){
       nextRole=roleForCycle(roles,nextRole,direction);
-      if(getAXERoleWeapon(nextRole)){
-        performDraw(nextRole);
+      if(getAXERoleWeapon(nextRole) && performDraw(nextRole))
         return true;
-      }
     }
     setNotice('Assign one of your owned weapons to a slot to switch');
     return false;
