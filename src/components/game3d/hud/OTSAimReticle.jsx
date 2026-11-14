@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react';
 import { subscribeOTSAim } from '../player/otsAimStore';
 import './OTSAimReticle.css';
 
-// Centre-screen reticle. It only exists while the aim input is held, and the
-// centre of this screen is exactly the ray the camera reports as the shot
-// direction. Purely presentational: no combat authority.
+// Bow users always get a precise centre-screen point. Holding aim changes the
+// camera framing, not the point the mouse controls. Combat uses the same
+// camera-centre ray; the reticle itself never awards hits.
 export default function OTSAimReticle() {
-  const [aim, setAim] = useState({ aiming: false, side: 1 });
+  const [aim, setAim] = useState({ aiming: false, side: 1, bowEquipped: false, blocked: false });
   useEffect(() => subscribeOTSAim(setAim), []);
+  const visible = (aim.bowEquipped || aim.aiming) && !aim.blocked;
   return (
     <div
-      className={`ots-reticle${aim.aiming ? ' is-active' : ''}${aim.side < 0 ? ' is-left' : ''}`}
+      className={`ots-reticle${visible ? ' is-active' : ''}${aim.side < 0 ? ' is-left' : ''}`}
       aria-hidden="true"
     >
       <span className="ots-reticle-dot" />
