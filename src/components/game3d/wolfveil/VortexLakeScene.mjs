@@ -131,12 +131,27 @@ function addCavern(root){
     passage.add(crystal);
   }
   // The water surface truly extends under the 30m-wide entrance.
-  const stream=new THREE.Mesh(new THREE.PlaneGeometry(26,67,18,28),
-    new THREE.MeshPhysicalMaterial({
-      color:0x126f8b,metalness:.30,roughness:.21,
-      transparent:true,opacity:.81,clearcoat:.85,
-      side:THREE.DoubleSide,depthWrite:false,
-    }));
+  const streamMat=new THREE.ShaderMaterial({
+    uniforms:{uTime:{value:0}},
+    transparent:true,depthWrite:false,side:THREE.DoubleSide,
+    vertexShader:`varying vec2 vUv;void main(){
+      vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);
+    }`,
+    fragmentShader:`precision highp float;
+      varying vec2 vUv;uniform float uTime;
+      float flow(){
+        return sin(vUv.y*44.-uTime*3.8+vUv.x*13.)*.5+.5;
+      }
+      void main(){
+        float r=flow(),ridge=pow(r,7.);
+        vec3 dark=vec3(.02,.11,.18),teal=vec3(.035,.32,.47);
+        vec3 col=mix(dark,teal,.42+.42*r)+ridge*vec3(.06,.13,.15);
+        gl_FragColor=vec4(col,.83);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  const stream=new THREE.Mesh(new THREE.PlaneGeometry(26,67,18,28),streamMat);
   stream.rotation.x=-Math.PI/2;stream.position.set(-2,-.05,15);
   passage.add(stream);
   const shaft=new THREE.SpotLight(0xcfe2ed,26,82,Math.PI/5,.6,1.9);
@@ -252,7 +267,7 @@ export function createVortexLakeLandmark(scene,{addGroundMesh,removeGroundMesh,s
       ribbons.rotation.y=t*.17;
       rings.rotation.y=-t*.68;
       rings.position.y=Math.sin(t*1.7)*.24;
-      cave.water.material.opacity=.78+.04*Math.sin(t*1.3);
+      cave.water.material.uniforms.uTime.value=t;
       const crossing=vortexLakePortalCrossing(last,position);
       last=position?{x:position.x,z:position.z}:null;
       if(!entered&&crossing){
