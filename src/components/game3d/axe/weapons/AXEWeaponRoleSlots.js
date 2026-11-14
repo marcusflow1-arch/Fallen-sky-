@@ -7,7 +7,7 @@ import {
   switchAXEInventoryWeapon, subscribeAXEEquipmentInventory,
 } from '../equipment/AXEEquipmentInventoryStore';
 import { inferAXEWeaponRole } from './AXEWeaponIdentity';
-import { AXE_HUD_WEAPON_ROLES, isAXEHUDWeaponRole, eligibleRoleWeapons, selectRoleWeapon } from './AXEWeaponRoleSlots.mjs';
+import { AXE_HUD_WEAPON_ROLES, isAXEHUDWeaponRole, selectRoleWeapon } from './AXEWeaponRoleSlots.mjs';
 
 const storage=characterScopedStorage('axe_hud_weapon_roles_v1');
 const empty=()=>({offensive:null,defensive:null,ranged:null});
@@ -32,7 +32,11 @@ export function subscribeAXEHUDWeaponRoles(fn){
   listeners.add(fn);fn(getAXEHUDWeaponRoles());return ()=>listeners.delete(fn);
 }
 export function getOwnedWeaponsForAXERole(role){
-  return eligibleRoleWeapons(getAXEInventoryItemsByCategory('weapon'),role,inferAXEWeaponRole);
+  if(!isAXEHUDWeaponRole(role))return [];
+  // Any genuinely owned weapon may be assigned to any one of the three
+  // visible socket templates. Role identity is a helpful DEFAULT, not a ban.
+  return getAXEInventoryItemsByCategory('weapon')
+    .filter(item=>item?.slot==='weapon' && !!item.instanceId);
 }
 export function getAXERoleWeapon(role){
   const inventory=getAXEInventoryItemsByCategory('weapon');
