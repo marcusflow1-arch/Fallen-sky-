@@ -1151,6 +1151,36 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         }
       },
     }) : null;
+    // A SECOND instance of the same real GLB dragon watches the new lake
+    // from the eastern mountain rim. It loads only when a player explores
+    // nearby; the old quarry encounter, boss HP system and animations stay.
+    const lakeStormDragon=region==='wolfveil'?createQuarryDragonBoss({
+      loader:worldGltfLoader,scene,bossEntities,setBosses,
+      sampleGroundY:sampleTileGroundY,
+      instanceId:'wolfveil_living_lake_storm_dragon',
+      encounterName:'Dragon of Living Perspectives',
+      site:'vortex_lake',
+      spawnPosition:{
+        x:VORTEX_LAKE.centerX+58,
+        z:VORTEX_LAKE.centerZ+70+30,
+      },
+      getPlayerPosition:()=>{
+        const p=modelRef.current?.position;
+        return p?{x:p.x,z:p.z,alive:getPlayerHUD().hp>0}:null;
+      },
+      applyPlayerDamage:(incoming)=>{
+        const player=getPlayerHUD();
+        if(!player||player.hp<=0)return;
+        const damage=Math.max(0,incoming-absorbShield(incoming));
+        if(damage>0)setHP(Math.max(0,player.hp-damage));
+      },
+      onEngage:boss=>{
+        if(!bossEncounter.isActive()){
+          bossEncounter.start({bossId:boss.id});
+          bossEncounter.beginCombat();
+        }
+      },
+    }):null;
     const pendingAXEDungeonBossSpawns = new Set();
     window.__gw3dSpawnAXEDungeonBoss = ({
       bossDef,
@@ -2835,6 +2865,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         // Move + animate each world boss (chase/wander/idle).
         updateBossMovement(delta, bossEntities, model, mapReady, sampleGroundY);
         quarryDragon?.update(delta);
+        lakeStormDragon?.update(delta);
 
         // ─── NPC proximity & interaction (generic npcs array is empty) ───
         let closestNPC = null;
@@ -4116,6 +4147,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       forestBiome?.dispose();
       waterContact?.dispose();
       quarryDragon?.dispose();
+      lakeStormDragon?.dispose();
       vortexLake?.dispose();
       if(window.__gw3dVortexLake===vortexLake)window.__gw3dVortexLake=null;
       livingInkWorld?.dispose();
