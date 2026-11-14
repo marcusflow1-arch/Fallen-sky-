@@ -12,6 +12,8 @@ import {DRAGON_FIRE_PATTERNS,pointSegmentDistance,isDragonFireHit,
   from '../src/components/game3d/boss/DragonLivingFirePatterns.mjs';
 import {createDragonLivingFireAttacks}
   from '../src/components/game3d/boss/DragonLivingFireAttacks.mjs';
+import {createBossEncounterController}
+  from '../src/components/game3d/boss/BossEncounterController.js';
 import {addVortexDungeonEcho}
   from '../src/components/game3d/dungeons/VortexDungeonEcho.mjs';
 const source=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
@@ -156,4 +158,30 @@ test('dragon inherits original imported GLB boss and original preview-only damag
   assert.match(dragon,/xpReward: 0/);
   const effects=source('src/components/game3d/boss/DragonLivingFireAttacks.mjs');
   assert.doesNotMatch(effects,/renderer\.toneMapping|scene\.background|scene\.fog|player\.position\.set|serverGrantXP/);
+});
+
+test('two dragon boss instances keep separate IDs, HP targeting and encounter lifecycle',()=>{
+  const oldWindow=globalThis.window;
+  const quarry={id:'wolfveil_quarry_dragon',name:'Quarry Dragon',
+    group:{visible:true},alive:true,dying:false,defeated:false,hp:100};
+  const lake={id:'wolfveil_living_lake_storm_dragon',
+    name:'Dragon of Living Perspectives',
+    group:{visible:true},alive:true,dying:false,defeated:false,hp:400};
+  globalThis.window={__gw3dBosses:[quarry,lake]};
+  try{
+    const controller=createBossEncounterController();
+    assert.equal(controller.start({bossId:lake.id}),true);
+    assert.equal(controller.getState().bossId,lake.id);
+    assert.equal(controller.beginCombat(),true);
+    assert.equal(controller.isActive(),true);
+    lake.hp=0;controller.update();
+    assert.equal(controller.isActive(),false);
+    assert.equal(quarry.hp,100);
+    assert.equal(controller.start({bossId:quarry.id}),true);
+    assert.equal(controller.getState().bossId,quarry.id);
+    controller.end({suppressOutro:true});
+  }finally{
+    if(oldWindow===undefined)delete globalThis.window;
+    else globalThis.window=oldWindow;
+  }
 });
