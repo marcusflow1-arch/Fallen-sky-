@@ -1048,3 +1048,217 @@
   .jade-weapon-assign{right:0;top:0;width:19px;height:21px;}
   .jade-weapon-chooser{max-width:190px;}
 }
+
+/* Approved FIRST curved blue-gold concept, implemented as a reusable DOM/SVG
+   template. About 25% smaller than the large concept mockup. This final scoped
+   block supersedes earlier rectangular .jade-weapon-card rules, not other HUD. */
+.jade-hud .jade-weapon-position {
+  top:clamp(208px,29vh,294px);
+  right:clamp(8px,1.8vw,30px);
+  width:clamp(240px,22vw,308px);
+  height:clamp(239px,35vh,320px);
+  filter:drop-shadow(0 7px 12px rgba(0,0,0,.38));
+}
+.jade-weapon-position .jade-curved-weapon-template {
+  width:100%;height:100%;position:relative;pointer-events:auto;
+  touch-action:pan-y;isolation:isolate;
+}
+.jade-curved-weapon-template .jade-weapon-sweep {
+  position:absolute;inset:0 auto 0 0;width:74%;height:100%;
+}
+.jade-weapon-curve {
+  position:absolute;inset:0;width:100%;height:100%;
+  overflow:visible;pointer-events:none;
+}
+.jade-weapon-curve-glow {
+  fill:none;stroke:#4dc6ff;stroke-width:3.6;
+  filter:drop-shadow(0 0 6px #249cfa);
+}
+.jade-weapon-curve-thread {
+  fill:none;stroke:rgba(173,237,255,.58);stroke-width:1;
+  filter:drop-shadow(0 0 3px #70d5ff);
+}
+.jade-weapon-curve-gold {
+  fill:#152c42;stroke:#eac77f;stroke-width:1.5;
+  filter:drop-shadow(0 0 4px #ffd081);
+}
+.jade-curved-weapon-template .jade-weapon-stack {
+  position:absolute;left:23%;right:3%;width:auto;top:14%;bottom:14%;
+  height:auto;display:flex;flex-direction:column;
+  align-items:stretch;justify-content:space-between;gap:4.5%;
+  pointer-events:none;
+}
+.jade-curved-weapon-template .jade-weapon-role-entry {
+  position:relative;flex:1 1 0;min-height:0;max-height:none;
+  width:90%;transform:translateX(12%);pointer-events:auto;
+}
+.jade-curved-weapon-template .jade-weapon-role-entry--defensive {
+  width:100%;transform:translateX(0);
+}
+.jade-curved-weapon-template .jade-weapon-socket {
+  position:relative;width:100%;height:100%;
+  border:1px solid rgba(77,185,249,.7);
+  border-radius:22px 12px 12px 18px;
+  background:linear-gradient(100deg,rgba(1,29,48,.84),rgba(5,22,44,.88) 55%,rgba(5,26,46,.69));
+  backdrop-filter:blur(6px);
+  box-shadow:inset 0 0 12px rgba(38,150,211,.11),0 0 9px rgba(30,141,224,.29);
+  transition:border-color .13s ease,box-shadow .13s ease,background .13s ease;
+}
+.jade-curved-weapon-template .jade-weapon-role-entry[data-active="true"] .jade-weapon-socket {
+  border:2px solid #f2c776;
+  background:linear-gradient(105deg,rgba(42,38,35,.95),rgba(27,41,51,.92) 72%,rgba(55,50,42,.74));
+  box-shadow:inset 0 0 12px rgba(246,191,107,.16),0 0 12px #efb958a3,0 0 3px #ffeba6;
+}
+.jade-curved-weapon-template .jade-weapon-role-entry:focus-within .jade-weapon-socket,
+.jade-curved-weapon-template .jade-weapon-role-entry:hover .jade-weapon-socket {
+  border-color:#fff0ca;box-shadow:0 0 13px rgba(98,211,255,.72);
+}
+.jade-curved-weapon-template .jade-weapon-role-entry .jade-weapon-card {
+  position:absolute;inset:0;width:100%;height:100%;min-height:0;
+  margin:0;border:0;border-radius:inherit;outline:0;box-shadow:none;
+  padding:6px 24px 6px 8px;display:flex;flex-direction:row;
+  align-items:center;justify-content:flex-start;gap:7px;
+  background:transparent;transform:none;opacity:1;
+  cursor:pointer;text-align:left;pointer-events:auto;
+}
+.jade-curved-weapon-template .jade-weapon-role-entry .jade-weapon-card:hover,
+.jade-curved-weapon-template .jade-weapon-role-entry .jade-weapon-card:focus-visible {
+  outline:2px solid #9fedff;outline-offset:2px;filter:none;
+  transform:none;
+}
+.jade-curved-weapon-template .jade-weapon-portrait {
+  position:relative;flex:0 0 clamp(25px,3vw,36px);
+  display:grid;place-items:center;
+  height:clamp(33px,4.4vh,43px);
+  filter:drop-shadow(0 0 6px rgba(52,183,255,.43));
+}
+.jade-curved-weapon-template .jade-weapon-fallback-art {
+  color:#8bdbff;width:80%;height:80%;
+}
+.jade-curved-weapon-template .jade-weapon-item-art {
+  position:absolute;inset:0;max-height:100%;max-width:100%;
+  width:100%;height:100%;object-fit:contain;
+  filter:drop-shadow(0 0 5px rgba(130,221,255,.52));
+}
+.jade-curved-weapon-template [data-active="true"] .jade-weapon-fallback-art {
+  color:#ffdaa0;filter:drop-shadow(0 0 5px #ffd288);
+}
+.jade-curved-weapon-template .jade-weapon-copy {
+  min-width:0;flex:1 1 auto;display:flex;
+  flex-direction:column;gap:3px;justify-content:center;
+}
+.jade-curved-weapon-template .jade-weapon-role-label {
+  width:100%;font:700 clamp(9px,.67vw,11px)/1.15 system-ui,sans-serif;
+  letter-spacing:.07em;color:#f7f9fd;text-transform:uppercase;
+  text-shadow:0 1px 3px #000;
+}
+.jade-curved-weapon-template .jade-weapon-item-label {
+  max-width:100%;font:450 clamp(8px,.56vw,10px)/1.2 system-ui,sans-serif;
+  color:#bddcf1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.jade-curved-weapon-template .jade-weapon-assign {
+  position:absolute;z-index:4;top:50%;right:3px;
+  transform:translateY(-50%);width:21px;height:24px;
+  border-radius:6px;border:1px solid rgba(112,188,231,.3);
+  background:rgba(7,25,43,.46);color:#b5e6fa;
+  opacity:.65;pointer-events:auto;cursor:pointer;
+}
+.jade-curved-weapon-template .jade-weapon-assign:hover,
+.jade-curved-weapon-template .jade-weapon-assign:focus-visible {
+  opacity:1;color:#fff;border-color:#f6d59d;
+  background:rgba(17,57,86,.95);outline:none;
+}
+.jade-curved-weapon-template .jade-weapon-curve-step {
+  position:absolute;z-index:3;left:57%;width:29px;height:29px;
+  display:grid;place-items:center;transform:translateX(-50%);
+  border:1.5px solid #eed094;border-radius:50%;
+  background:rgba(2,23,41,.94);color:#ffe6aa;
+  box-shadow:inset 0 0 6px #185a85,0 0 7px #23a9ee88;
+  pointer-events:auto;cursor:pointer;
+}
+.jade-weapon-curve-step--top {top:0;}
+.jade-weapon-curve-step--bottom {bottom:0;}
+.jade-weapon-curve-step:hover,.jade-weapon-curve-step:focus-visible {
+  background:rgba(31,70,91,.97);outline:1px solid #fff0ca;
+}
+.jade-curved-weapon-template .jade-weapon-legend {
+  position:absolute;top:20%;bottom:11%;right:0;
+  width:27%;display:flex;flex-direction:column;gap:7px;
+  justify-content:center;align-items:stretch;
+  color:#e0f1ff;pointer-events:none;
+}
+.jade-weapon-legend-title {
+  color:#f5d08b;font:700 clamp(9px,.67vw,11px)/1.1 Georgia,serif;
+  text-align:center;white-space:nowrap;letter-spacing:.015em;
+  padding-bottom:3px;text-shadow:0 1px 3px #000;
+}
+.jade-weapon-shortcut {
+  min-height:24px;display:flex;align-items:center;justify-content:flex-start;gap:4px;
+  font:500 clamp(8px,.54vw,10px)/1.15 system-ui,sans-serif;
+  white-space:nowrap;
+}
+.jade-weapon-shortcut kbd,.jade-weapon-favorite-key {
+  flex:none;width:24px;height:23px;padding:0;
+  display:grid;place-items:center;
+  border:1px solid #cfad76;border-radius:6px;
+  background:rgba(3,22,38,.81);color:#e9d4a4;
+}
+.jade-weapon-favorite-key {
+  cursor:pointer;pointer-events:auto;
+}
+.jade-weapon-favorite-key:hover,.jade-weapon-favorite-key:focus-visible {
+  color:white;border-color:#ffe9bb;outline:1px solid #6ed3ff;
+}
+.jade-weapon-legend-rule {
+  margin-top:2px;height:1px;flex:0 0 1px;
+  background:linear-gradient(to right,transparent,#eecb82,transparent);
+}
+.jade-weapon-wheel-hint {
+  font:500 clamp(8px,.5vw,9px)/1.45 system-ui,sans-serif;
+  color:#cde4f2;text-align:center;
+}
+.jade-hud .jade-weapon-position .jade-weapon-chooser {
+  left:auto;right:calc(100% + 7px);top:8%;width:clamp(190px,18vw,240px);
+}
+.jade-hud .jade-weapon-position .jade-weapon-notice {
+  left:9%;width:76%;top:calc(100% + 3px);
+  border-color:rgba(234,195,124,.55);border-radius:9px;
+  box-shadow:0 0 9px rgba(58,154,236,.3);
+}
+@media (max-width: 960px) {
+  .jade-hud .jade-weapon-position {
+    top:33%;right:9px;width:clamp(204px,27vw,264px);height:clamp(212px,37vh,276px);
+  }
+  .jade-curved-weapon-template .jade-weapon-legend {width:28%;}
+  .jade-curved-weapon-template .jade-weapon-sweep {width:73%;}
+}
+@media (max-width: 620px) {
+  .jade-hud .jade-weapon-position {top:31%;right:6px;width:152px;height:178px;}
+  .jade-curved-weapon-template .jade-weapon-sweep {width:100%;}
+  .jade-curved-weapon-template .jade-weapon-legend {display:none;}
+  .jade-curved-weapon-template .jade-weapon-stack {left:23%;right:5%;}
+  .jade-curved-weapon-template .jade-weapon-role-entry .jade-weapon-card {padding:3px 19px 3px 5px;gap:4px;}
+  .jade-curved-weapon-template .jade-weapon-portrait {flex-basis:24px;height:28px;}
+  .jade-curved-weapon-template .jade-weapon-role-label {font-size:8px;}
+  .jade-curved-weapon-template .jade-weapon-item-label {font-size:7px;}
+  .jade-curved-weapon-template .jade-weapon-assign {width:17px;height:20px;right:1px;}
+  .jade-curved-weapon-template .jade-weapon-curve-step {width:24px;height:24px;}
+  .jade-hud .jade-weapon-position .jade-weapon-chooser {right:calc(100% + 4px);width:min(190px,55vw);}
+}
+@media (max-height: 580px) and (min-width: 621px) {
+  /* A compact laptop viewport has a short gap between compass and skill bar. */
+  .jade-hud .jade-weapon-position {
+    top:33%;right:17%;width:clamp(170px,21vw,210px);height:clamp(145px,35vh,184px);
+  }
+  .jade-curved-weapon-template .jade-weapon-legend {display:none;}
+  .jade-curved-weapon-template .jade-weapon-sweep {width:100%;}
+  .jade-curved-weapon-template .jade-weapon-portrait {flex-basis:24px;height:28px;}
+  .jade-curved-weapon-template .jade-weapon-role-label {font-size:9px;}
+  .jade-curved-weapon-template .jade-weapon-item-label {font-size:8px;}
+  .jade-curved-weapon-template .jade-weapon-curve-step {width:23px;height:23px;}
+}
+@media (prefers-reduced-motion: reduce) {
+  .jade-curved-weapon-template *, .jade-curved-weapon-template *::before {
+    transition:none!important;animation:none!important;
+  }
+}
