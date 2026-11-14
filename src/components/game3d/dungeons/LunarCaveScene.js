@@ -2,6 +2,7 @@
 // Game 3D. The approved concept image guides composition; never substitute a
 // flat screenshot billboard for world geometry. Game 1 remains unchanged.
 import * as THREE from 'three';
+import {addVortexDungeonEcho} from './VortexDungeonEcho.mjs';
 import {
   LUNAR_CAVE_ENTRANCE,LUNAR_CAVE_CHAMBERS,LUNAR_CAVE_WATER_END,
   LUNAR_CAVE_ROOM_RADIUS,LUNAR_CAVE_PASSAGE_HALF_WIDTH,LUNAR_CAVE_PASSAGES,
@@ -378,6 +379,7 @@ function addDungeonCeilingLamp(root,kit,x,z,{illuminated=true}={}){
 export function createLunarCaveDungeon(scene){
   const mats=materialSet(),root=new THREE.Group();
   root.name='AXE_LunarCaveSeparateDungeonScene';scene.add(root);
+  const vortexMemory=addVortexDungeonEcho(root);
   // Dungeon-only albedo lift: illuminated stone retains colour and readable
   // detail. Entrance/world stone materials are created separately unchanged.
   mats.stones.forEach(stone=>stone.color.multiplyScalar(1.34));
@@ -488,6 +490,7 @@ export function createLunarCaveDungeon(scene){
     update(dt,position){
       time+=Math.min(.09,Math.max(0,dt||0));
       flames.forEach(fn=>fn(time));startPortal(time);finalPortal(time);
+      vortexMemory.update(dt);
       water.material.opacity=.75+.05*Math.sin(time*1.7);
       if(!position){last=null;return false;}
       const now={x:position.x,z:position.z};
