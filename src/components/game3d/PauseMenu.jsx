@@ -63,9 +63,10 @@ export default function PauseMenu({
   const [confirmAction,setConfirmAction]=useState(null);
   const [error,setError]=useState('');
   const [controls,setControls]=useState(getAXEControlSettings);
-  const [graphics,setGraphics]=useState(()=>
-    activateCloneUltraWorldGraphics(
-      typeof localStorage==='undefined'?null:localStorage));
+  const [graphics,setGraphics]=useState(()=>{
+    try{return activateCloneUltraWorldGraphics(localStorage);}
+    catch{return game3dPauseGraphicsDefaults(null);}
+  });
   const [menuMotion,setMenuMotion]=useState(()=>{
     try{return localStorage.getItem('game3d_menu_motion')!=='false';}
     catch{return true;}
