@@ -105,9 +105,10 @@ function buildReticle(container){
   return {host,marker};
 }
 
-export function createGame3DBowAimVisuals({scene,container}={}){
+export function createGame3DBowAimVisuals({scene,container,showDot=true}={}){
   if(!scene||!container)return {fire:()=>false,confirmHit:()=>{},update:()=>{},dispose:()=>{}};
   const overlay=typeof document!=='undefined'?buildReticle(container):null;
+  if(overlay&&!showDot){overlay.host.firstChild.style.display='none';overlay.host.style.zIndex='61';}
   const birds=[];
   let hitSeconds=0,disposed=false,serial=0;
   const fire=({origin,target}={})=>{
