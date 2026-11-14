@@ -134,11 +134,12 @@ import { xpForLevel, pickTier, getEnemyTierByName,
   NPC_INTERACT_RANGE, ENEMY_ATTACK_RANGE, RANGED_ATTACK_RANGE, PLAYER_INVUL_AFTER_HIT,
 } from './gameWorldConfig';
 import { attachContextGuard } from './webglContextGuard';
-import { createInkWashLook, resolveInkLevel, resolveInkPalette } from './render/inkWashLook';
+import { createInkWashLook, resolveInkLevel, resolveInkPalette, readGraphicsSettings } from './render/inkWashLook';
+import { createAtomicUltraSumiMode } from './render/atomicUltraSumiMode.mjs';
 import { buildGrassEnvironment } from './buildGrassEnvironment';
 import {createWolfveilVillage} from './wolfveil/WolfveilScene';
 import {installWolfveilImportedTown} from './wolfveil/WolfveilImportedTownScene.mjs';
-import {WOLFVEIL_PLAYER_TOWN_SPAWN,wolfveilQuestNpcSpot} from './wolfveil/WolfveilImportedTownLayout.mjs';
+import {WOLFVEIL_PLAYER_TOWN_SPAWN,wolfveilQuestNpcSpot,insideWolfveilImportedTown} from './wolfveil/WolfveilImportedTownLayout.mjs';
 import {createWolfveilLivingMeadow} from './wolfveil/WolfveilLivingMeadow';
 import {createWolfveilLivingSumiEMaterials} from './wolfveil/WolfveilLivingSumiEMaterials.mjs';
 import { insideWolfveilClientGround } from './wolfveil/WolfveilTravelSafety.mjs';
@@ -173,7 +174,7 @@ import QuestRewardToast from './QuestRewardToast';
 import Game3DLunarNotifications from './notifications/Game3DLunarNotifications';
 import { createAXEServiceStationRuntime } from './axe/services/world/AXEServiceStationRuntime';
 import { getAXEDungeonState } from './axe/dungeons/AXEDungeonStore';
-import { WOLFVEIL_ROUTES, WOLFVEIL_SITES, wolfveilDistanceToRiver } from './wolfveil/WolfveilLayout';
+import { WOLFVEIL_ROUTES, WOLFVEIL_SITES, wolfveilDistanceToRiver, wolfveilRouteClearance } from './wolfveil/WolfveilLayout';
 import { createGame3DWaterContact } from './axe/world/Game3DWaterContact';
 import { LUNAR_CAVE_REGION, LUNAR_CAVE_ENTRANCE, LUNAR_CAVE_TRAINING_SPAWNS, LUNAR_CAVE_WATER_END } from './dungeons/LunarCaveLayout.mjs';
 import { createLunarMountainEntrance, createLunarCaveDungeon } from './dungeons/LunarCaveScene';
@@ -469,11 +470,15 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     // The world's look: sumi-e ink wash (render/inkWashLook.js), as the pause menu's Graphics settings say (or ?ink=).
     const inkLook = createInkWashLook({ renderer, guard: rendererGuard, level: resolveInkLevel(), palette: resolveInkPalette() });
     let livingInkWorld = null; // initialized only after the Game 3D Wolfveil roots exist
+    let atomicLook = null; // clone-only optional GPU shader/postprocessing preset
     window.__gw3dInkLook = inkLook; // the bench and reviews read and set its level
     const onGraphicsSettings = () => {
       inkLook.setPalette(resolveInkPalette());
       inkLook.setLevel(resolveInkLevel());
       livingInkWorld?.setLevel(resolveInkLevel());
+      const g=readGraphicsSettings();
+      atomicLook?.setQuality(g.quality||'high');
+      atomicLook?.setEnabled(g.artStyle==='atomic-ultra-sumi');
     };
     window.addEventListener('graphicsSettingsChanged', onGraphicsSettings);
 
@@ -672,6 +677,19 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       roots:[wolfveilVillage.world.group,livingMeadow?.root,importedSpawnTown?.root],
       level:resolveInkLevel(),
     }) : null;
+    // Clone preview only. A 1,000m² GPU meadow follows the player in eligible
+    // meadows; zero extra blades on paved town, roads or river/cave paths.
+    const atomicSettings=readGraphicsSettings();
+    atomicLook=createAtomicUltraSumiMode({
+      scene,renderer,camera,sampleHeight:sampleGroundY,
+      quality:atomicSettings.quality||'high',
+      enabled:atomicSettings.artStyle==='atomic-ultra-sumi',
+      allowGrass:(x,z)=>region==='wolfveil'&&
+        !insideWolfveilImportedTown(x,z,3)&&
+        wolfveilDistanceToRiver(x,z-70)>4&&
+        wolfveilRouteClearance(x,z-70)>4,
+    });
+    window.__gw3dAtomicLook=atomicLook;
     mapReady = true;
     // Flush any spawn snapping that queued before this point (none in practice
     // since this runs synchronously, but kept for safety).
@@ -2252,7 +2270,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
           entryCamera.preview(delta,{camera,model,mode:entryPreviewModeRef.current,
             clipAgainstTerrain:pose=>playerCameraSystem.clipAgainstTerrain(pose)});
         }
-        inkLook.render(scene,camera);
+        atomicLook?.update(delta,modelRef.current?.position,envSystem.getState());
+        if(!atomicLook?.render(camera))inkLook.render(scene,camera);
         return;
       }
       if(menuCameraHeld){
@@ -3945,8 +3964,10 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       // Fused characters' faces follow the moment: fierce in combat, relaxed (still blinking) otherwise.
       const playerFace=faceMoodsFor(modelRef.current);
       if(playerFace){const fighting=isInCombat();playerFace.setMood(fighting?'fierce':'neutral',fighting?.85:1);playerFace.update(Math.min(delta,.1));}
-      inkLook.render(scene, window.__axeTileInspectionCamera?.worldId === 'game3d'
-        ? window.__axeTileInspectionCamera.camera : camera); // preserve the same world/ink renderer in edit mode
+      const activeCamera=window.__axeTileInspectionCamera?.worldId === 'game3d'
+        ? window.__axeTileInspectionCamera.camera : camera;
+      atomicLook?.update(delta,modelRef.current?.position,envSystem.getState());
+      if(!atomicLook?.render(activeCamera))inkLook.render(scene,activeCamera);
     };
     animate();
 
@@ -3955,6 +3976,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       camera.updateProjectionMatrix();
       renderer.setSize(container.clientWidth, container.clientHeight);
       inkLook.setSize();
+      atomicLook?.resize();
     };
     window.addEventListener('resize', handleResize);
 
@@ -4014,6 +4036,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       window.removeEventListener('graphicsSettingsChanged', onGraphicsSettings);
       window.removeEventListener('game3dDedicatedMode',onDedicatedMode);
       window.removeEventListener('game3dDedicatedPose',onDedicatedPose);
+      atomicLook?.dispose();
+      if(window.__gw3dAtomicLook===atomicLook)window.__gw3dAtomicLook=null;
       inkLook.dispose(); if (window.__gw3dInkLook === inkLook) window.__gw3dInkLook = null;
       clearInterval(weatherInterval);
       window.removeEventListener('axeNearbyRespawnQuery', onNearbyRespawnQuery);
