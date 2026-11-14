@@ -146,7 +146,7 @@ function addCavern(root){
   // the game's existing groundMeshes raycaster, not a separate physics floor.
   return {passage,water:stream};
 }
-function bridgePieces(root){
+function bridgePieces(root,{sampleGroundY}={}){
   const deckMaterial=new THREE.MeshStandardMaterial({
     color:0x5e6570,roughness:.87,metalness:.09,
   });
@@ -158,6 +158,22 @@ function bridgePieces(root){
   deck.receiveShadow=true;deck.name='Wolfveil_VortexLakeWalkableBridgeDeck';
   deck.userData.bridgeWalkable=true;
   root.add(deck);
+  // Long, grade-matched ramp joins the original mountain bank to the
+  // raised deck: a standing player can reach the water portal on foot.
+  const worldBankZ=VORTEX_LAKE.centerZ+VORTEX_LAKE.worldOffsetZ-65;
+  const bankY=sampleGroundY?.(VORTEX_LAKE.centerX,worldBankZ);
+  const groundY=Number.isFinite(bankY)?bankY+.25:VORTEX_LAKE.waterY+1.2;
+  const deckTop=VORTEX_LAKE.waterY+1.70+.29;
+  const dz=30,rise=deckTop-groundY;
+  const rampLength=Math.hypot(dz,rise);
+  const ramp=new THREE.Mesh(new THREE.BoxGeometry(4.4,.58,rampLength),
+    deckMaterial);
+  ramp.position.set(0,(groundY+deckTop)/2-VORTEX_LAKE.waterY-.29,-50);
+  ramp.rotation.x=-Math.atan2(rise,dz);
+  ramp.receiveShadow=true;
+  ramp.name='Wolfveil_VortexLake_GroundedBridgeApproach';
+  ramp.userData.bridgeWalkable=true;
+  root.add(ramp);
   for(const side of [-1,1]){
     for(let i=0;i<9;i++){
       const z=-35+i*3.65;
@@ -167,7 +183,7 @@ function bridgePieces(root){
     const rail=new THREE.Mesh(new THREE.BoxGeometry(.16,.18,32),bronze);
     rail.position.set(side*1.97,3.25,-20);root.add(rail);
   }
-  return deck;
+  return {deck,ramp};
 }
 function makeSpiralingCore(root){
   const core=new THREE.Mesh(new THREE.CylinderGeometry(2.5,1.3,17,32,1,true),
@@ -189,7 +205,7 @@ function makeSpiralingCore(root){
   }
   return rings;
 }
-export function createVortexLakeLandmark(scene,{addGroundMesh,removeGroundMesh}={}){
+export function createVortexLakeLandmark(scene,{addGroundMesh,removeGroundMesh,sampleGroundY}={}){
   if(!scene?.add)throw new Error('The vortex lake needs the existing game scene');
   const root=new THREE.Group();
   root.name='Wolfveil_LivingPerspectivesLakeVortex';
@@ -207,11 +223,13 @@ export function createVortexLakeLandmark(scene,{addGroundMesh,removeGroundMesh}=
   water.userData.blazeProcedural=true;
   water.renderOrder=2;root.add(water);
   const cave=addCavern(root);
-  const bridge=bridgePieces(root);
+  const {deck:bridge,ramp}=bridgePieces(root,{sampleGroundY});
   // The main terrain and physical river remain the authoritative world.
-  // Only this bridge is intentionally added to Game 3D's ground raycaster.
+  // These two walkable bridge pieces are intentionally added to the existing
+  // player/companion/ranged ground raycaster, not a new collision authority.
   root.updateMatrixWorld(true);
   addGroundMesh?.(bridge);
+  addGroundMesh?.(ramp);
   const ribbons=new THREE.Group();
   ribbons.name='LivingUltraSumi_WaterEnergyVortex';root.add(ribbons);
   const palette=[0x2c9dc5,0x7172db,0x3adac0,0x936ad5];
@@ -244,6 +262,7 @@ export function createVortexLakeLandmark(scene,{addGroundMesh,removeGroundMesh}=
     },
     dispose(){
       removeGroundMesh?.(bridge);
+      removeGroundMesh?.(ramp);
       scene.remove(root);
       root.traverse(obj=>{
         if(!obj.isMesh)return;
