@@ -1,15 +1,15 @@
-/* Over-the-shoulder aim reticle. Hidden while exploring; fades in with the aim
-   blend and slides a hair toward the active shoulder. */
+/* The bow's screen-centre point stays exactly on the camera ray, including
+   when the shoulder side changes. No pointer events: mouse look remains free. */
 .ots-reticle {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 34px;
-  height: 34px;
-  margin: -17px 0 0 -17px;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
   pointer-events: none;
   opacity: 0;
-  transform: scale(1.12);
+  transform: scale(1.05);
   transition: opacity 160ms ease, transform 160ms ease;
   z-index: 60;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.75));
@@ -24,9 +24,9 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 3px;
-  height: 3px;
-  margin: -1.5px 0 0 -1.5px;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.95);
 }
@@ -41,7 +41,7 @@
 .ots-reticle-bottom {
   left: 50%;
   width: 1.5px;
-  height: 9px;
+  height: 5px;
   margin-left: -0.75px;
   transition: transform 180ms ease;
 }
@@ -53,18 +53,14 @@
 .ots-reticle-right {
   top: 50%;
   height: 1.5px;
-  width: 9px;
+  width: 5px;
   margin-top: -0.75px;
 }
 
 .ots-reticle-left { left: 0; }
 .ots-reticle-right { right: 0; }
 
-/* The reticle itself stays dead centre (that is the shot ray); the tick gap
-   hints at which shoulder the camera sits over. */
-.ots-reticle.is-left .ots-reticle-top { transform: translateX(-3px); }
-.ots-reticle.is-left .ots-reticle-bottom { transform: translateX(3px); }
-.ots-reticle.is-active.is-left { transform: scale(1) translateX(-1px); }
+/* Shoulder swap may change the view but never moves the aim marker. */
 
 @media (prefers-reduced-motion: reduce) {
   .ots-reticle,
