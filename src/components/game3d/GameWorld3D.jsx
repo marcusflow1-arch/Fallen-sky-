@@ -3226,7 +3226,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
           } else {
             const bowAimTarget=activeWeaponPath==='ranged'
               ?selectCameraBowTarget({
-                camera,origin:model.position,enemies,bosses:bossEntities,
+                camera,origin:model.position,
+                enemies:[...enemies,...(window.__gw3dRogues||[])],bosses:bossEntities,
                 maxRange:RANGED_ATTACK_RANGE,
                 lockedEnemyId:lockOnTargetRef.current?.id,
                 groundMeshes:otsCameraColliders(),
