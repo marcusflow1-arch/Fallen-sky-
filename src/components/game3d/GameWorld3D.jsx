@@ -2632,6 +2632,9 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
           setNearbyCompanion(false);
         }
 
+        // Keep the active bow's centre reticle and player facing aligned to
+        // mouse-controlled camera direction, even when RMB is not held.
+        otsAim.current.bowEquipped=getActiveWeaponPath()==='ranged'&&!isMountedRef.current;
         updateLockOnRotation(delta); applyOTSAimFacing(model, orbit.current.yaw, otsAim.current, delta);
 
         // Core player state machine drives locomotion/combat intent, while legacy animation clips remain preserved.
