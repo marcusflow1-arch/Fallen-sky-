@@ -3844,7 +3844,19 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         const dungeonBossForUI = bossEntities.find((b) =>
           b?.dungeonBoss && b.alive && !b.dying && !b.defeated && b.group?.visible
         );
-        setBossHeadUI(projectBossHead(dungeonBossForUI || bossEntities[0], camera, w, h));
+        const encounterId=bossEncounter.getState().bossId;
+        const engagedBoss=bossEntities.find(b=>b.id===encounterId &&
+          b.alive && !b.dying && !b.defeated);
+        const nearestBoss=bossEntities
+          .filter(b=>b.alive&&!b.dying&&!b.defeated&&b.group?.visible)
+          .sort((a,b)=>{
+            const p=model?.position||{x:0,z:0};
+            const da=Math.hypot(a.group.position.x-p.x,a.group.position.z-p.z);
+            const db=Math.hypot(b.group.position.x-p.x,b.group.position.z-p.z);
+            return da-db;
+          })[0];
+        setBossHeadUI(projectBossHead(
+          dungeonBossForUI||engagedBoss||nearestBoss,camera,w,h));
 
         // ─── Project quest NPC heads → screen-space for floating "QUEST" labels ───
         const qs = getQuestState();
