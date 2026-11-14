@@ -14,6 +14,7 @@ import { AXE_TEMPORARY_BONUS_CAP, resolveAXEHeroStrike } from './axe/combat/AXES
 import { getAbilityState, updateTargetHP } from './abilityStore';
 import { updateBoss } from './bossStore';
 import { selectCameraBowTarget } from './combat/BowCameraAim.mjs';
+import { RANGED_ATTACK_RANGE } from './gameWorldConfig';
 
 const BRIDGE_VERSION = 'world-boss-bow-reticle-v5';
 const bossShotRaycaster = new THREE.Raycaster();
@@ -279,7 +280,8 @@ function resolveArrowBoss(_event) {
   const origin=typeof window!=='undefined'?window.__localPlayerPos:null;
   const candidate=selectCameraBowTarget({
     camera,origin:origin||camera?.position,bosses:getLiveBosses(),
-    maxRange:70,
+    maxRange:RANGED_ATTACK_RANGE,
+    groundMeshes:typeof window!=='undefined'?window.__gw3dBowOccluders:[],
   });
   return candidate?.target||null;
 }
@@ -422,7 +424,9 @@ export function dispatchRogueAttack(playerDerivedRef, skillStrikeMult = 1.0) {
   // A manual rogue lock still has to be in the small visual bow cone.
   const alignedRogue=ranged?selectCameraBowTarget({
     camera,origin:origin||camera?.position,enemies:rogues,
-    maxRange:70,lockedEnemyId:target?.kind==='rogue'?target.id:null,
+    maxRange:RANGED_ATTACK_RANGE,
+    groundMeshes:typeof window!=='undefined'?window.__gw3dBowOccluders:[],
+    lockedEnemyId:target?.kind==='rogue'?target.id:null,
   })?.target:null;
   const rogue=ranged?alignedRogue:
     target?.kind==='rogue'?findLiveRogue(target.id):null;
@@ -439,8 +443,10 @@ export function dispatchRogueAttack(playerDerivedRef, skillStrikeMult = 1.0) {
     return true;
   }
 
-  // a nearby rogue (EnemyPlayerSpawner) resolves the swing against its own stats; the
-  // estimate is for listeners that only need a size (the bow's charge, combat music)
+  // A ranged miss at the small crosshair cannot trigger legacy area/nearby
+  // rogue damage. The forward melee fallback below remains unchanged.
+  if(ranged){lastRangedBaseDamage=0;return false;}
+  // A nearby rogue (EnemyPlayerSpawner) resolves melee against its own stats.
   const estimate = estimateSwing(playerDerivedRef, null, skillStrikeMult, 'rogue');
   lastRangedBaseDamage = estimate;
   window.dispatchEvent(new CustomEvent('rogueAITakeDamage', {
