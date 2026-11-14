@@ -4,6 +4,7 @@
 import {WOLFVEIL_ACTIVE_TOWN_BUILDINGS,WOLFVEIL_HOUSING_PLOTS,WOLFVEIL_ROUTES,
   wolfveilHeight,wolfveilDistanceToRiver} from './WolfveilLayout.js';
 import {WOLFVEIL_PALACE,isInsideVillageBuildLimit} from './WolfveilPalaceLayout.mjs';
+import {isVortexLakeWetSurface} from './VortexLakeLayout.mjs';
 import {insideWolfveilImportedTown} from './WolfveilImportedTownLayout.mjs';
 import {isInsideWolfveilFountainHomeClearance} from './WolfveilFountainHomesLayout.mjs';
 import {isWolfveilWestHillsideForest,WOLFVEIL_WEST_HILLSIDE} from './WolfveilWestHillside.mjs';
@@ -16,6 +17,7 @@ const distanceSegment=(x,z,a,b)=>{
   return Math.hypot(x-a[0]-dx*t,z-a[1]-dz*t);
 };
 export const clearOf=({x,z},r=8)=>{
+  if(isVortexLakeWetSurface(x,z,r))return false;
   // Shared player/client and worker clearance: no trunks inside the actual
   // Luna palace facade, stair entry or near its perimeter.
   const palace=WOLFVEIL_PALACE;
