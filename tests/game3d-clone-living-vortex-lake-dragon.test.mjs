@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import * as THREE from 'three';
 import {VORTEX_LAKE,gradeVortexLakeBasin,vortexLakeNormalizedRadius,
-  vortexLakePortalCrossing,vortexLakeBridgeContains}
+  vortexLakePortalCrossing,vortexLakeBridgeContains,isVortexLakeWetSurface}
   from '../src/components/game3d/wolfveil/VortexLakeLayout.mjs';
 import {createVortexLakeLandmark}
   from '../src/components/game3d/wolfveil/VortexLakeScene.mjs';
@@ -26,6 +26,9 @@ test('lake is attached to real river, physical basin and large sunlit mountain m
   assert(gradeVortexLakeBasin(215,365,121)<VORTEX_LAKE.waterY+2);
   assert.equal(gradeVortexLakeBasin(-300,30,76),76);
   assert.equal(gradeVortexLakeBasin(205,480,122),122);
+  assert(isVortexLakeWetSurface(205,320));
+  assert(isVortexLakeWetSurface(215,365));
+  assert(!isVortexLakeWetSurface(310,300));
   const terrain=source('src/components/game3d/wolfveil/WolfveilLayout.js');
   assert.match(terrain,/gradeVortexLakeBasin\(x,z,y\)/);
   assert.match(terrain,/vortexLake:\{id:/);
@@ -126,6 +129,11 @@ test('actual clone routes into dungeon and back to its lake bridge',()=>{
   assert.match(world,/vortexLake\?\.update\(delta,modelRef\.current\?\.position\)/);
   assert.match(world,/window\.dispatchEvent\(new CustomEvent\('game3dPortalTravel',\{detail:vortexTravel\}\)\)/);
   assert.match(world,/portalReturn==='vortex'/);
+  assert.match(world,/!isVortexLakeWetSurface\(x,z-70,2\)/);
+  assert.match(source('src/components/game3d/wolfveil/WolfveilLivingMeadow.js'),
+    /isVortexLakeWetSurface\(x,z,\.75\)/);
+  assert.match(source('src/components/game3d/wolfveil/WolfveilForestLayout.js'),
+    /if\(isVortexLakeWetSurface\(x,z,r\)\)return false/);
   assert.match(world,/vortexLake\?\.dispose\(\)/);
   assert.match(page,/vortexOriginRef\.current==='vortex'/);
   assert.match(page,/setPortalReturn\(fromVortex\?'vortex'/);
@@ -136,6 +144,11 @@ test('actual clone routes into dungeon and back to its lake bridge',()=>{
 test('dragon inherits original imported GLB boss and original preview-only damage path',()=>{
   const dragon=source('src/components/game3d/boss/QuarryDragonAerialSlam.js');
   assert.match(dragon,/createDragonLivingFireAttacks/);
+  assert.match(dragon,/instanceId=DRAGON_BOSS_ID/);
+  const world=source('src/components/game3d/GameWorld3D.jsx');
+  assert.match(world,/instanceId:'wolfveil_living_lake_storm_dragon'/);
+  assert.match(world,/lakeStormDragon\?\.update\(delta\)/);
+  assert.match(world,/lakeStormDragon\?\.dispose\(\)/);
   assert.match(dragon,/\['rain','breath','cyclone','slam'\]/);
   assert.match(dragon,/if\(livingFire\.update\(dt\)\)/);
   assert.match(dragon,/livingFire\.dispose\(\)/);
