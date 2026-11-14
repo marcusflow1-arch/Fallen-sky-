@@ -198,12 +198,15 @@ export function createDragonLivingFireAttacks({
     }
     return false;
   }
+  function cancel(){
+    state=null;group.visible=false;
+    rain.visible=breath.visible=cyclone.visible=sparks.visible=false;
+  }
   function dispose(){
     if(disposed)return;
-    disposed=true;scene.remove(group);disposeTree(group);
-    state=null;
+    disposed=true;cancel();scene.remove(group);disposeTree(group);
   }
-  return {start,update,dispose,
+  return {start,update,cancel,dispose,
     get active(){return !!state;},
     get kind(){return state?.kind??null;},
     get phase(){return state?dragonFirePhase(state.kind,clock):'idle';},
