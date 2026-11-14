@@ -3,9 +3,10 @@
 // is routed through BossCombatDialogue so quest/NPC dialogue and boss banter do
 // not compete for the same responsibility.
 
-function getLiveWorldBoss() {
+function getLiveWorldBoss(preferredBossId=null) {
   if (typeof window === 'undefined' || !Array.isArray(window.__gw3dBosses)) return null;
   return window.__gw3dBosses.find((boss) =>
+    (!preferredBossId||boss.id===preferredBossId) &&
     boss?.group &&
     boss.alive !== false &&
     !boss.dying &&
@@ -40,7 +41,7 @@ export function createBossEncounterController({
 
   const routeBossLine = ({ text, duration = 3.5 } = {}) => {
     if (!text || typeof window === 'undefined') return false;
-    const boss = getLiveWorldBoss();
+    const boss = getLiveWorldBoss(state.bossId);
     if (!boss) return false;
     return !!window.__gw3dBossDialogue?.queueLine?.({
       name: boss.name || boss.title || 'World Boss',
@@ -50,7 +51,7 @@ export function createBossEncounterController({
   };
 
   const activate = (request = {}) => {
-    const boss = getLiveWorldBoss();
+    const boss = getLiveWorldBoss(request.bossId);
     if (!boss) return false;
 
     state.active = true;
@@ -86,13 +87,13 @@ export function createBossEncounterController({
   };
 
   const beginCombat = () => {
-    if (!state.active || !getLiveWorldBoss()) return false;
+    if (!state.active || !getLiveWorldBoss(state.bossId)) return false;
     state.phase = 'active';
     return true;
   };
 
   const end = ({ outroLine, suppressOutro = false } = {}) => {
-    const bossWasAlive = !!getLiveWorldBoss();
+    const bossWasAlive = !!getLiveWorldBoss(state.bossId);
     state.phase = 'ended';
     state.active = false;
     state.pendingStart = null;
@@ -110,7 +111,7 @@ export function createBossEncounterController({
   // Compatibility hook for existing scripted boss patterns. It forwards to the
   // dedicated boss-dialogue system rather than owning dialogue itself.
   const queueLine = ({ text, duration = 3 } = {}) => {
-    if (!state.active || !getLiveWorldBoss() || !text) return false;
+    if (!state.active || !getLiveWorldBoss(state.bossId) || !text) return false;
     return routeBossLine({ text, duration });
   };
 
@@ -118,8 +119,8 @@ export function createBossEncounterController({
     if (!state.active && state.pendingStart) activate(state.pendingStart);
 
     if (state.active) {
-      const boss = getLiveWorldBoss();
-      if (!boss || boss.id !== state.bossId) {
+      const boss = getLiveWorldBoss(state.bossId);
+      if (!boss) {
         // Death/vanish is a hard encounter boundary. This prevents GameWorld's
         // auto-pattern loop from continuing during the death animation.
         end({ suppressOutro: true });
@@ -127,7 +128,7 @@ export function createBossEncounterController({
     }
   };
 
-  const isActive = () => state.active && !!getLiveWorldBoss();
+  const isActive = () => state.active && !!getLiveWorldBoss(state.bossId);
   const isNPCSuppressed = () => state.npcSuppressed;
   const getPhase = () => state.phase;
   const getState = () => ({
