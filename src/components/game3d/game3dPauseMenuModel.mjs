@@ -23,10 +23,33 @@ export function game3dPauseGraphicsDefaults(raw){
   const value=raw&&typeof raw==='object'?raw:{};
   return {
     ...value,
-    artStyle:['original','ink','atomic-ultra-sumi'].includes(value.artStyle)?value.artStyle:'ink',
+    artStyle:['original','ink','atomic-ultra-sumi'].includes(value.artStyle)?value.artStyle:'atomic-ultra-sumi',
     inkPalette:value.inkPalette==='classic'?'classic':'vibrant',
     quality:['low','medium','high','ultra'].includes(value.quality)?value.quality:'high',
     shadows:typeof value.shadows==='boolean'?value.shadows:true,
     fpsCap:[30,60,120,144].includes(value.fpsCap)?value.fpsCap:60,
   };
+}
+
+
+// Clone-only first-use migration. Previous test app sessions may have saved
+// Sumi-e Ink Wash. Activate the owner's requested Ultra Max preset exactly
+// once while retaining quality, FPS, shadows, and all unrelated preferences.
+// After the one-time upgrade the user can freely select Classic/Sumi-e.
+export const CLONE_ULTRA_WORLD_MIGRATION_KEY='game3d_clone_ultra_sumi_world_v3';
+export function activateCloneUltraWorldGraphics(storage=globalThis.localStorage){
+  let old=null;
+  try {old=JSON.parse(storage?.getItem?.('game_graphics_settings')||'null');}
+  catch {old=null;}
+  if(storage?.getItem?.(CLONE_ULTRA_WORLD_MIGRATION_KEY)==='1')
+    return game3dPauseGraphicsDefaults(old);
+  const result=game3dPauseGraphicsDefaults({
+    ...(old&&typeof old==='object'?old:{}),
+    artStyle:'atomic-ultra-sumi',
+  });
+  try{
+    storage?.setItem?.('game_graphics_settings',JSON.stringify(result));
+    storage?.setItem?.(CLONE_ULTRA_WORLD_MIGRATION_KEY,'1');
+  }catch{/* Embedded/locked previews may deny storage; runtime still uses result. */}
+  return result;
 }
