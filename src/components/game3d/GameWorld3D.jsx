@@ -1957,7 +1957,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       // Left click = attack, middle click = Lock-On, right click = camera drag (+ block if no drag)
       if (e.button === 0) {
         if (altCursorHeld.current) { e.preventDefault(); return; }
-        if (isAXEClickToMoveEnabled() && tryClickToMove(e)) { e.preventDefault(); return; }
+        if (getActiveWeaponPath()!=='ranged' && isAXEClickToMoveEnabled() && tryClickToMove(e)) { e.preventDefault(); return; }
         // Melee clicks never borrow the bow's 12m range or attack montage.
         // The clone's existing over-the-shoulder reticle stays independent.
         rangedClickAttackPressed.current = getActiveWeaponPath()==='ranged';
@@ -1995,6 +1995,14 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         drag.current.x = e.clientX;
         drag.current.y = e.clientY;
         rightDragMoved.current = false; otsAim.current.beginHold(performance.now()); // hold = OTS aim, tap = guard
+        // A browser cannot move its OS cursor programmatically. Pointer lock
+        // uses relative mouse deltas and hides the cursor so the reticle stays
+        // at the exact centre while the camera follows the mouse.
+        if (getActiveWeaponPath()==='ranged' && !altCursorHeld.current &&
+            document.pointerLockElement!==renderer.domElement) {
+          try { renderer.domElement.requestPointerLock?.()?.catch?.(()=>{}); }
+          catch { /* Right-drag remains available in restricted previews. */ }
+        }
         e.preventDefault();
       }
     };
@@ -2717,7 +2725,12 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         // Smooth camera system: damped lock-on yaw, combat distance, and sprint pullback without per-frame object spam.
         playerCameraSystem.update(delta, playerStateMachine.intent);
         updateOTSAimFrame({camera,aim:otsAim.current,colliders:otsCameraColliders(),
-          extraMeshes:[...enemies,...bossEntities].map(e=>e.group).filter(Boolean)});
+          extraMeshes:[...enemies,...bossEntities].map(e=>e.group).filter(Boolean),
+          bowEquipped:getActiveWeaponPath()==='ranged'&&!isMountedRef.current,
+          blocked:entryModeRef.current||window.__axeUiModalOpen||
+            window.__axeServiceModeOpen||window.__axeWorldMapOpen||
+            window.__axePauseMenuOpen||window.__axeDialogueOpen||
+            window.__axeTileInspectionEditing});
         bowVisuals.update(delta,{
           active:getActiveWeaponPath()==='ranged'&&!isMountedRef.current,
           blocked:entryModeRef.current||window.__axeUiModalOpen||
