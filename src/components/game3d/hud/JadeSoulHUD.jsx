@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Swords, Shield, Crosshair, Settings2 } from 'lucide-react';
 import { getPlayerHUD, subscribePlayerHUD } from '../playerHUDStore';
 import { getCombatResources, subscribeCombatResources } from '../combat/combatResourcesStore';
 import { ACTIVE_SLOTS, getLoadout, subscribeLoadout } from '../skills/loadoutStore';
@@ -15,6 +14,7 @@ import {
   drawAXEHUDWeaponRole, assignAXEHUDWeaponRole, subscribeAXEHUDWeaponRoles,
 } from '../axe/weapons/AXEWeaponRoleSlots.js';
 import { subscribeCharacterChange } from '../characterStorage';
+import AXECurvedWeaponTemplate from '../axe/weapons/AXECurvedWeaponTemplate';
 import './JadeSoulHUD.css';
 import AXEServicesNavigation from '../axe/services/AXEServicesNavigation';
 import HUDCompassStrip from './HUDCompassStrip';
@@ -31,7 +31,6 @@ import { createPortal } from 'react-dom';
 const clamp01 = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
 const ratio = (value, max) => Number(max) > 0 ? clamp01(Number(value) / Number(max)) : 0;
 const fmt = (n) => Math.max(0, Math.floor(Number(n) || 0)).toLocaleString('en-US');
-const ROLE_ICONS = { offensive: Swords, defensive: Shield, ranged: Crosshair };
 const ROLE_TITLES = { offensive: 'Damage', defensive: 'Defense', ranged: 'Ranged' };
 
 const SKILL_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
@@ -76,10 +75,11 @@ function WeaponStack({ playerLevel }) {
   const wheelRef = useRef(null);
   const wheelAt = useRef(0);
   const touchY = useRef(null);
+  const activeRoleRef = useRef(null);
 
   useEffect(() => subscribeAXEHUDWeaponRoles(() => refresh(n=>n+1)), []);
   useEffect(() => subscribeAXEEquipmentInventory(() => refresh(n=>n+1)), []);
-  useEffect(() => subscribeCharacterChange(() => {setAssigning(null);setNotice('');}), []);
+  useEffect(() => subscribeCharacterChange(() => {setAssigning(null);setNotice('');activeRoleRef.current=null;}), []);
   useEffect(() => {
     if(!notice)return;
     const timer=setTimeout(()=>setNotice(''),2800);
@@ -92,13 +92,14 @@ function WeaponStack({ playerLevel }) {
     if(!item){
       setAssigning(role);
       setNotice(getOwnedWeaponsForAXERole(role).length
-        ? `Choose a ${ROLE_TITLES[role]} weapon for this slot`
-        : `No ${ROLE_TITLES[role]} weapon owned yet`);
+        ? `Choose a weapon for the ${ROLE_TITLES[role]} slot`
+        : 'No weapons in your inventory yet');
       return;
     }
     const result=drawAXEHUDWeaponRole(role,{level:playerLevel||1});
     if(result.ok){
       setAssigning(null);
+      activeRoleRef.current=role;
       setNotice(`${ROLE_TITLES[role]} · ${result.item?.name||item.name}`);
     } else {
       setNotice(result.message||result.reason?.replace(/_/g,' ')||'Weapon unavailable');
@@ -116,7 +117,14 @@ function WeaponStack({ playerLevel }) {
 
   const cycleAvailable=useCallback(direction=>{
     const roles=AXE_HUD_WEAPON_ROLES.map(row=>row.role);
-    let nextRole=inferAXEWeaponRole(getActiveEquippedAXEWeapon());
+    const activeId=getActiveEquippedAXEWeapon()?.instanceId;
+    // An assigned slot can contain ANY owned weapon. Remember which panel
+    // actually drew it instead of inferring a role from the weapon family.
+    let nextRole=(activeRoleRef.current &&
+      getAXERoleWeapon(activeRoleRef.current)?.instanceId===activeId)
+      ? activeRoleRef.current
+      : (roles.find(role=>getAXERoleWeapon(role)?.instanceId===activeId) ||
+        inferAXEWeaponRole(getActiveEquippedAXEWeapon()));
     for(let i=0;i<roles.length;i++){
       nextRole=roleForCycle(roles,nextRole,direction);
       if(getAXERoleWeapon(nextRole)){
@@ -124,7 +132,7 @@ function WeaponStack({ playerLevel }) {
         return true;
       }
     }
-    setNotice('Assign an owned weapon to a role to switch');
+    setNotice('Assign one of your owned weapons to a slot to switch');
     return false;
   },[performDraw]);
 
@@ -144,69 +152,65 @@ function WeaponStack({ playerLevel }) {
     return ()=>el.removeEventListener('wheel',onWheel);
   },[cycleAvailable]);
 
-  // Shift+C retains the old inventory-backed weapon role cycle; plain C
-  // belongs exclusively to the Character/Stats menu. 1–0 remain combat skills.
+  const drawFavorite=useCallback(()=>{
+    if(getAXERoleWeapon('offensive'))performDraw('offensive');
+    else cycleAvailable(1);
+  },[performDraw,cycleAvailable]);
+
+  // ArrowLeft / ArrowRight cycle available user-assigned panels. ArrowUp
+  // selects the primary/favorite (Damage) panel. Shift+C stays supported;
+  // plain C belongs to Character/Stats, 1–0 stay combat skills.
+  // Never consume input while typing or navigating services/maps/dialogs.
   useEffect(()=>{
     const handler=e=>{
-      if(e.code!=='KeyC'||!e.shiftKey||e.repeat||e.defaultPrevented||e.ctrlKey||e.altKey||e.metaKey||
+      if(e.repeat||e.defaultPrevented||e.ctrlKey||e.altKey||e.metaKey||
         window.__axeServiceModeOpen||window.__axeWorldMapOpen||
         e.target?.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName||''))return;
+      const key=e.code;
+      if(key!=='ArrowLeft' && key!=='ArrowRight' && key!=='ArrowUp' &&
+        !(key==='KeyC' && e.shiftKey))return;
+      if(e.shiftKey && key!=='KeyC')return;
       e.preventDefault();
-      cycleAvailable(1);
+      if(key==='ArrowLeft')cycleAvailable(-1);
+      else if(key==='ArrowRight'||key==='KeyC')cycleAvailable(1);
+      else drawFavorite();
     };
     window.addEventListener('keydown',handler);
     return ()=>window.removeEventListener('keydown',handler);
-  },[cycleAvailable]);
+  },[cycleAvailable,drawFavorite]);
 
   return (
     <div className="jade-weapon-position" aria-label="Three weapon roles: damage, defense, ranged">
-      <div className="jade-weapon-layout" ref={wheelRef}
-        onTouchStart={e=>{ touchY.current=e.touches[0]?.clientY??null; }}
+      <AXECurvedWeaponTemplate
+        rows={AXE_HUD_WEAPON_ROLES}
+        getItem={getAXERoleWeapon}
+        activeId={active?.instanceId}
+        assigning={assigning}
+        wheelRef={wheelRef}
+        onDraw={performDraw}
+        onAssign={role=>setAssigning(current=>current===role?null:role)}
+        onCycle={cycleAvailable}
+        onFavorite={drawFavorite}
+        onTouchStart={e=>{touchY.current=e.touches[0]?.clientY??null;}}
         onTouchEnd={e=>{
           const start=touchY.current;
           touchY.current=null;
-          if(start!==null&&e.changedTouches[0]&&Math.abs(e.changedTouches[0].clientY-start)>24)
+          if(start!==null && e.changedTouches[0] &&
+            Math.abs(e.changedTouches[0].clientY-start)>24)
             cycleAvailable(e.changedTouches[0].clientY<start?1:-1);
-        }}>
-        <div className="jade-weapon-c-arc" aria-hidden="true" />
-        <div className="jade-weapon-stack" role="group" aria-label="Weapon role quick switches">
-          {AXE_HUD_WEAPON_ROLES.map(row=>{
-            const item=getAXERoleWeapon(row.role);
-            const isActive=!!(active&&item&&active.instanceId===item.instanceId);
-            const Icon=ROLE_ICONS[row.role];
-            return <div className="jade-weapon-role-entry" key={row.role}>
-              <button type="button"
-                className={`jade-weapon-card jade-weapon-card--${row.role}${isActive?' is-active':''}`}
-                title={item?`${row.label}: ${item.name} · click to draw`:`${row.label}: assign an owned weapon`}
-                aria-label={item?`Draw ${row.label} weapon ${item.name}`:`Assign ${row.label} weapon`}
-                aria-pressed={isActive}
-                onClick={()=>performDraw(row.role)}>
-                <span className="jade-weapon-card-inner" aria-hidden="true" />
-                <Icon className="jade-weapon-role-icon" size={22} aria-hidden="true"/>
-                <span className="jade-weapon-role-label">{row.label}</span>
-                <span className="jade-weapon-item-label">{item?.name||'Empty slot'}</span>
-              </button>
-              <button type="button" className="jade-weapon-assign"
-                aria-label={`Change ${row.label} weapon assignment`}
-                aria-expanded={assigning===row.role}
-                onClick={()=>setAssigning(current=>current===row.role?null:row.role)}>
-                <Settings2 size={13} aria-hidden="true"/>
-              </button>
-            </div>;
-          })}
-        </div>
-      </div>
+        }}
+      />
       {assigning && <div className="jade-weapon-chooser" role="group"
         aria-label={`Assign a ${ROLE_TITLES[assigning]} weapon`}>
         <div className="jade-weapon-chooser-title">
-          <span>{ROLE_TITLES[assigning]} weapons</span>
+          <span>Choose weapon · {ROLE_TITLES[assigning]}</span>
           <button type="button" onClick={()=>setAssigning(null)} aria-label="Close weapon assignment">×</button>
         </div>
         {getOwnedWeaponsForAXERole(assigning).length
           ? getOwnedWeaponsForAXERole(assigning).map(item=>
             <button type="button" key={item.instanceId}
               onClick={()=>assignAndDraw(assigning,item.instanceId)}>{item.name}</button>)
-          : <p>No weapon of this role in your inventory.</p>}
+          : <p>No owned weapons yet.</p>}
       </div>}
       {notice && <div className="jade-weapon-notice" role="status">{notice}</div>}
     </div>
