@@ -320,8 +320,10 @@ export default function PauseMenu({
               {view==='graphics'&&<div className="axe3d-pause__settings-grid">
                 <div className="axe3d-pause__surface">
                   <OptionButtons label="Visual style" value={graphics.artStyle}
-                    items={[{id:'ink',text:'Sumi-e Ink Wash'},{id:'original',text:'Original'}]}
+                    items={[{id:'original',text:'Classic'},{id:'ink',text:'Sumi-e Ink Wash'},
+                      {id:'atomic-ultra-sumi',text:'ULTRA MAX · Atomic Ultra-Sumi'}]}
                     onPick={artStyle=>changeGraphics({...graphics,artStyle})}/>
+                  {graphics.artStyle==='atomic-ultra-sumi'&&<p className="axe3d-pause__help">Experimental pure GLSL plasma, silver edges, GPU grass and bloom. Higher GPU cost; switch back instantly.</p>}
                   {graphics.artStyle==='ink'&&<>
                     <OptionButtons label="Ink color profile" value={inkPaletteFor(graphics)}
                       items={[{id:'vibrant',text:'Vibrant Color'},{id:'classic',text:'Classic Ink'}]}
