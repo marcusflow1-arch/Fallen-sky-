@@ -272,20 +272,28 @@ function findBossUnderArrowAim(event) {
   return findBossInCameraAimCone();
 }
 
-function resolveArrowBoss(_event) {
-  // The old priority path could hit a boss anywhere in a huge 33-degree cone
-  // or via a stale lock far from the tiny bow dot. Resolve the identical
-  // camera-centre ray used for ordinary enemies and enforce finite range.
-  const camera=typeof window!=='undefined'?window.__gw3dCamera:null;
-  const origin=typeof window!=='undefined'?window.__localPlayerPos:null;
-  const candidate=selectCameraBowTarget({
-    camera,origin:origin||camera?.position,bosses:getLiveBosses(),
-    maxRange:RANGED_ATTACK_RANGE,
-    groundMeshes:typeof window==='undefined'?[]:
-      typeof window.__gw3dBowOccluders==='function'?window.__gw3dBowOccluders():
-      window.__gw3dBowOccluders||[],
+function resolveBowPriorityTarget() {
+  // One exact crosshair decision for normal enemies, rogues and world bosses.
+  // Otherwise the old priority code could damage a distant boss through an
+  // enemy directly in front of the bow, or auto-hit a rogue behind the dot.
+  const global=typeof window!=='undefined'?window:null;
+  const camera=global?.__gw3dCamera;
+  const origin=global?.__localPlayerPos||camera?.position;
+  const bosses=getLiveBosses();
+  const rogues=Array.isArray(global?.__gw3dRogues)
+    ?global.__gw3dRogues.filter(r=>r?.alive!==false&&!r.dying):[];
+  const enemies=Array.isArray(global?.__gw3dEnemies)?global.__gw3dEnemies:[];
+  const occluders=typeof global?.__gw3dBowOccluders==='function'
+    ?global.__gw3dBowOccluders():global?.__gw3dBowOccluders||[];
+  const result=selectCameraBowTarget({
+    camera,origin,enemies:[...enemies,...rogues],bosses,
+    maxRange:RANGED_ATTACK_RANGE,groundMeshes:occluders,
+    lockedEnemyId:getAbilityState().target?.id,
   });
-  return candidate?.target||null;
+  if(!result)return null;
+  if(bosses.includes(result.target))return {kind:'boss',target:result.target};
+  if(rogues.includes(result.target))return {kind:'rogue',target:result.target};
+  return null;
 }
 
 let rangedChargeStartedAt = 0;
@@ -404,7 +412,8 @@ export function dispatchRogueAttack(playerDerivedRef, skillStrikeMult = 1.0) {
   lastRangedSkillMultiplier = skillStrikeMult;
 
   const ranged=isRangedWeapon();
-  const boss=ranged?resolveArrowBoss(lastPointerEvent):null;
+  const bowPriority=ranged?resolveBowPriorityTarget():null;
+  const boss=bowPriority?.kind==='boss'?bowPriority.target:null;
   if (boss) {
     const strike = heroStrike(playerDerivedRef, boss, skillStrikeMult, 'boss');
     lastRangedBaseDamage=strike.kind==='hit'?strike.damage:0;
@@ -419,20 +428,7 @@ export function dispatchRogueAttack(playerDerivedRef, skillStrikeMult = 1.0) {
   }
 
   const target=getAbilityState().target;
-  const camera=typeof window!=='undefined'?window.__gw3dCamera:null;
-  const origin=typeof window!=='undefined'?window.__localPlayerPos:null;
-  const rogues=(typeof window!=='undefined'&&Array.isArray(window.__gw3dRogues))
-    ?window.__gw3dRogues:[];
-  // A manual rogue lock still has to be in the small visual bow cone.
-  const alignedRogue=ranged?selectCameraBowTarget({
-    camera,origin:origin||camera?.position,enemies:rogues,
-    maxRange:RANGED_ATTACK_RANGE,
-    groundMeshes:typeof window==='undefined'?[]:
-      typeof window.__gw3dBowOccluders==='function'?window.__gw3dBowOccluders():
-      window.__gw3dBowOccluders||[],
-    lockedEnemyId:target?.kind==='rogue'?target.id:null,
-  })?.target:null;
-  const rogue=ranged?alignedRogue:
+  const rogue=ranged?(bowPriority?.kind==='rogue'?bowPriority.target:null):
     target?.kind==='rogue'?findLiveRogue(target.id):null;
   if (rogue) {
     const strike = heroStrike(playerDerivedRef, rogue, skillStrikeMult, 'rogue');
