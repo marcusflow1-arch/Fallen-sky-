@@ -35,6 +35,14 @@ test('mouse movement drives camera under pointer lock; click-to-move cannot cons
  assert.match(world,/bowEquipped:getActiveWeaponPath\(\)==='ranged'&&!isMountedRef\.current/);
 });
 
+test('bow selection always leaves camera steering to mouse, not an automatic lock',()=>{
+ const camera = read('src/components/game3d/player/PlayerCameraSystem.jsx');
+ assert.match(world,/otsAim\.current\.bowEquipped=getActiveWeaponPath\(\)==='ranged'/);
+ assert.match(camera,/this\.aim\?\.bowEquipped\|\|!isAXEAutoTargetNearbyEnabled\(\)/);
+ assert.match(camera,/aimBlend<=\.0001&&!this\.aim\?\.bowEquipped/);
+ assert.match(cameraMath,/!aim\.aiming && !aim\.bowEquipped/);
+});
+
 test('bow hits use exact camera centre independently of melee target fan',()=>{
  const bow = read('src/components/game3d/combat/BowCameraAim.mjs');
  assert.match(bow,/setFromCamera\(\{x:0,y:0\},camera\)/);
