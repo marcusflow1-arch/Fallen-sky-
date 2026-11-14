@@ -7,6 +7,9 @@ on:
       - 'src/components/game3d/combat/BowCameraAim.mjs'
       - 'src/components/game3d/vfx/Game3DBowSpiritBird.mjs'
       - 'tests/game3d-bow-camera-aim-spirit-bird.test.mjs'
+      - 'tests/game3d-bow-centre-mouse-aim.test.mjs'
+      - 'src/components/game3d/player/**'
+      - 'src/components/game3d/hud/OTSAimReticle.*'
       - '.github/workflows/game3d-bow-camera-aim.yml'
   push:
     paths:
@@ -15,9 +18,23 @@ on:
       - 'src/components/game3d/combat/BowCameraAim.mjs'
       - 'src/components/game3d/vfx/Game3DBowSpiritBird.mjs'
       - 'tests/game3d-bow-camera-aim-spirit-bird.test.mjs'
+      - 'tests/game3d-bow-centre-mouse-aim.test.mjs'
+      - 'src/components/game3d/player/**'
+      - 'src/components/game3d/hud/OTSAimReticle.*'
 permissions:
   contents: read
 jobs:
+  # Independent source checks do not depend on a full Vite dependency install.
+  bow-centre-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify mouse centre, visible bow reticle and modest aim framing
+        run: node --test tests/game3d-bow-centre-mouse-aim.test.mjs
   bow-aim:
     runs-on: ubuntu-latest
     timeout-minutes: 15
