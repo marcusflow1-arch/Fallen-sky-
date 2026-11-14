@@ -51,7 +51,7 @@ test('vortex scene creates one real 3D water body, walkable bridge and travel tr
   const landmark=createVortexLakeLandmark(scene,{
     addGroundMesh:m=>added.push(m),removeGroundMesh:m=>removed.push(m),
   });
-  assert.equal(added.length,1);
+  assert.equal(added.length,2);
   assert.equal(added[0],landmark.bridge);
   assert.equal(added[0].userData.bridgeWalkable,true);
   assert(landmark.water.geometry.getAttribute('position').count>3000);
@@ -67,7 +67,7 @@ test('vortex scene creates one real 3D water body, walkable bridge and travel tr
   assert.equal(landmark.update(.016,core),null);
   assert(landmark.status.entered);
   landmark.dispose();
-  assert.deepEqual(removed,[added[0]]);
+  assert.deepEqual(removed,added);
   assert.equal(scene.getObjectByName('Wolfveil_LivingPerspectivesLakeVortex'),undefined);
 });
 
