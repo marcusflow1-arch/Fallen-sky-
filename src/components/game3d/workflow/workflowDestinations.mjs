@@ -2,6 +2,7 @@ import { createTileGrid, tileFromId } from '../../worldTileEditor/tileGrid.mjs';
 import { sectionFromId, SECTION_STORAGE_KEY } from '../wolfveil/preview/wolfveilSectionGrid.mjs';
 import { insideWolfveilClientGround } from '../wolfveil/WolfveilTravelSafety.mjs';
 import { LUNAR_CAVE_ENTRANCE } from '../dungeons/LunarCaveLayout.mjs';
+import {VORTEX_LAKE} from '../wolfveil/VortexLakeLayout.mjs';
 import { ASTRAL_DUNGEON_REGION,ASTRAL_DUNGEON_TITLE,ASTRAL_PADS } from '../dungeons/AstralDungeonLayout.mjs';
 
 // The current Play mesh uses world X/Z metres and the Wolfveil +70m Z offset.
@@ -12,6 +13,7 @@ export const WOLFVEIL_WORKFLOW_GRID = createTileGrid(
 export const WORKFLOW_LAST_REPORTED_TILE = 'X87-Z70';
 // A stable world-space landmark, intentionally independent from terrain tile IDs.
 export const WORKFLOW_DUNGEON_ENTRANCE_ID = 'dungeon-entrance';
+export const WORKFLOW_VORTEX_LAKE_ID='vortex-lake';
 export const WORKFLOW_ASTRAL_DUNGEON_ID = 'moonfall-expanse';
 
 // Reviewed Wolfveil single-square claims snapshot (2026-11-09).
@@ -62,6 +64,15 @@ export function resolveWorkflowDestination(value) {
       area:ASTRAL_DUNGEON_TITLE,status:'Preview · four moonlit circular platforms · Lv 45+',
       x:ASTRAL_PADS[0].x,z:ASTRAL_PADS[0].z,minX:0,maxX:0,minZ:0,maxZ:0};
   }
+  if(['vortex','vortex-lake','living-lake','world-beneath-world'].includes(landmarkName)){
+    // Spawn on the registered bridge; never spawn inside the deep whirlpool.
+    const {x,z}=VORTEX_LAKE.safeReturn;
+    if(!insideWolfveilClientGround(x,z,2))return null;
+    return {id:WORKFLOW_VORTEX_LAKE_ID,kind:'landmark',
+      area:'Living Perspectives Vortex Lake',
+      status:'Preview · 3D mountain water passage · exploration portal',
+      x,z,minX:x,maxX:x,minZ:z,maxZ:z};
+  }
   if (['dungeon', 'dungeon-entrance', 'lunar-cave', 'lunar-mountain-gate'].includes(landmarkName)) {
     // Spawn on the natural approach OUTSIDE the portal, never inside the rock.
     // Keep this position coupled to the actual Lunar Cave entrance layout.
@@ -101,6 +112,8 @@ export function listWorkflowDestinations(read = (key) =>
   typeof window === 'undefined' ? null : window.localStorage.getItem(key)) {
   const items = [];
   const seen = new Set();
+  const vortex=resolveWorkflowDestination(WORKFLOW_VORTEX_LAKE_ID);
+  if(vortex){items.push({...vortex,source:'clone-preview'});seen.add(vortex.id);}
   for (const reported of WORKFLOW_REPORTED_AREAS) {
     const destination = resolveWorkflowDestination(reported.id);
     if (!destination) continue; // Never list an unsafe or invalid location.
