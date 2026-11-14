@@ -1958,7 +1958,9 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       if (e.button === 0) {
         if (altCursorHeld.current) { e.preventDefault(); return; }
         if (isAXEClickToMoveEnabled() && tryClickToMove(e)) { e.preventDefault(); return; }
-        rangedClickAttackPressed.current = true;
+        // Melee clicks never borrow the bow's 12m range or attack montage.
+        // The clone's existing over-the-shoulder reticle stays independent.
+        rangedClickAttackPressed.current = getActiveWeaponPath()==='ranged';
         attackPressed.current = true;
         // Like Luna's Game 2 exploration: a click in the 3D viewport locks
         // free-look. Keep left attack and optional click-to-move intact.
