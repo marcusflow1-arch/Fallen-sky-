@@ -377,11 +377,19 @@ function installBossAndBowBridge() {
     }
   };
 
+  // Losing focus must never leave a phantom charged attack armed.
+  const onBlur=()=>{
+    rangedChargeActive=false;
+    bossDamagedThisPressId=null;rogueDamagedThisPressId=null;
+    lastRangedBaseDamage=0;
+  };
+  window.addEventListener('blur',onBlur);
   window.addEventListener('mousedown', onMouseDown, true);
   window.addEventListener('mouseup', onMouseUp, true);
   window.addEventListener('rogueAITakeDamage', onRogueDamage);
 
   window.__atomXeBossCombatBridgeCleanup = () => {
+    window.removeEventListener('blur',onBlur);
     window.removeEventListener('mousedown', onMouseDown, true);
     window.removeEventListener('mouseup', onMouseUp, true);
     window.removeEventListener('rogueAITakeDamage', onRogueDamage);
