@@ -1,0 +1,30 @@
+name: Game 3D Atomic Ultra-Sumi preview
+on:
+  pull_request:
+    paths:
+      - 'src/components/game3d/render/atomicUltraSumiMode.mjs'
+      - 'src/components/game3d/render/atomicUltraSumiShaders.mjs'
+      - 'src/components/game3d/game3dPauseMenuModel.mjs'
+      - 'src/components/game3d/PauseMenu.jsx'
+      - 'src/components/game3d/GameWorld3D.jsx'
+      - 'tests/game3d-atomic-ultra-sumi-mode.test.mjs'
+      - '.github/workflows/game3d-atomic-ultra-sumi.yml'
+  push:
+    paths:
+      - 'src/components/game3d/render/atomicUltraSumiMode.mjs'
+      - 'src/components/game3d/render/atomicUltraSumiShaders.mjs'
+      - 'src/components/game3d/GameWorld3D.jsx'
+      - 'tests/game3d-atomic-ultra-sumi-mode.test.mjs'
+permissions:
+  contents: read
+jobs:
+  procedural-preview-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test procedural shaders and reversible Graphics setting
+        run: node --test tests/game3d-atomic-ultra-sumi-mode.test.mjs
