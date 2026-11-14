@@ -55,7 +55,10 @@ function Switch({checked,onChange,label,description}){
 
 export default function PauseMenu({
   open,onClose,volume=0.5,onVolumeChange=()=>{},onReturnToCharacterSelect,onCreateCharacter,
+  context='world',motionEnabled,onMotionChange,
 }){
+  const entry=context==='entry';
+  const reduceMotion=typeof window!=='undefined'&&window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const [view,setView]=useState('overview');
   const [confirmAction,setConfirmAction]=useState(null);
   const [error,setError]=useState('');
@@ -66,6 +69,23 @@ export default function PauseMenu({
     catch{/* local settings may be unavailable */}
     return game3dPauseGraphicsDefaults(saved);
   });
+  const [menuMotion,setMenuMotion]=useState(()=>{
+    try{return localStorage.getItem('game3d_menu_motion')!=='false';}
+    catch{return true;}
+  });
+  const shouldAnimate=menuMotion&&!reduceMotion;
+  const availableSections=entry
+    ?GAME3D_PAUSE_SECTIONS.filter(section=>section.id!=='session')
+    :GAME3D_PAUSE_SECTIONS;
+  const updateMotion=next=>{
+    const enabled=!!next;
+    setMenuMotion(enabled);
+    try{localStorage.setItem('game3d_menu_motion',String(enabled));}catch{}
+    onMotionChange?.(enabled);
+  };
+  useEffect(()=>{
+    if(open&&typeof motionEnabled==='boolean')setMenuMotion(motionEnabled);
+  },[open,motionEnabled]);
   const resumeRef=useRef(null);
   const dialogRef=useRef(null);
   const lastVolumeRef=useRef(volume>0?volume:.5);
@@ -78,6 +98,10 @@ export default function PauseMenu({
     window.__axePauseMenuOpen=true;
     window.dispatchEvent(new Event('axePauseMenuOpened'));
     if(document.pointerLockElement)document.exitPointerLock?.();
+    // Refresh the same graphics settings written from either entry or in-world.
+    try{setGraphics(game3dPauseGraphicsDefaults(
+      JSON.parse(localStorage.getItem('game_graphics_settings')||'null')));}
+    catch{setGraphics(game3dPauseGraphicsDefaults(null));}
     resumeRef.current?.focus();
     return ()=>{window.__axePauseMenuOpen=false;};
   },[open]);
@@ -101,6 +125,19 @@ export default function PauseMenu({
           }else if(!event.shiftKey&&(document.activeElement===last||outside)){
             event.preventDefault();first.focus();
           }
+        }
+        return;
+      }
+      // Console-style keyboard navigation of the left/top text rail.
+      if((event.key==='ArrowDown'||event.key==='ArrowUp'||event.key==='Home'||event.key==='End')
+        &&event.target?.closest?.('.axe3d-pause__rail')){
+        const buttons=Array.from(dialogRef.current?.querySelectorAll(
+          '.axe3d-pause__rail button:not([disabled])')||[]);
+        const i=buttons.indexOf(document.activeElement);
+        if(buttons.length){
+          const next=event.key==='Home'?0:event.key==='End'?buttons.length-1
+            :(Math.max(0,i)+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;
+          event.preventDefault();event.stopImmediatePropagation();buttons[next].focus();
         }
         return;
       }
@@ -148,7 +185,8 @@ export default function PauseMenu({
   };
 
   const heading={
-    overview:['Journey Menu','Your adventure is still running'],
+    overview:entry?['Game Settings','Adjust your experience before entering Wolfveil']
+      :['Journey Menu','Your adventure is still running'],
     audio:['Audio','Adjust your game theme'],
     controls:['Controls','Choose how you move through the world'],
     graphics:['Graphics & Display','Tune the world to your device'],
@@ -156,37 +194,38 @@ export default function PauseMenu({
   }[view]||['Journey Menu','Your adventure is still running'];
 
   return <AnimatePresence>
-    {open&&<motion.div className="axe3d-pause__overlay"
+    {open&&<motion.div className="axe3d-pause__overlay" data-context={context}
+      data-motion={shouldAnimate?'on':'off'}
       initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-      transition={{duration:.15}}>
-      <motion.section ref={dialogRef} role="dialog" aria-modal="true" aria-label="Game 3D world menu"
+      transition={{duration:shouldAnimate?.15:0}}>
+      <motion.section ref={dialogRef} role="dialog" aria-modal="true" aria-label={entry?'Game 3D title settings':'Game 3D world menu'}
         className="axe3d-pause__panel"
         initial={{opacity:0,scale:.97,y:16}} animate={{opacity:1,scale:1,y:0}}
-        exit={{opacity:0,scale:.98,y:12}} transition={{duration:.18}}>
+        exit={{opacity:0,scale:.98,y:12}} transition={{duration:shouldAnimate?.18:0}}>
         <div className="axe3d-pause__topline"/>
         <header className="axe3d-pause__header">
           <div className="axe3d-pause__identity">
             <div className="axe3d-pause__crest"><Gamepad2 aria-hidden="true" size={23}/></div>
             <div>
               <span className="axe3d-pause__eyebrow">ATOM X EVE / GAME 3D</span>
-              <h2>WORLD MENU</h2>
+              <h2>{entry?'SETTINGS':'WORLD MENU'}</h2>
             </div>
           </div>
           <div className="axe3d-pause__header-end">
-            <span className="axe3d-pause__online"><span/> WORLD ACTIVE</span>
+            <span className="axe3d-pause__online"><span/> {entry?'TITLE SCREEN':'WORLD ACTIVE'}</span>
             <button type="button" className="axe3d-pause__icon-button"
-              onClick={onClose} aria-label="Resume game" title="Resume game"><X size={20}/></button>
+              onClick={onClose} aria-label={entry?"Close settings":"Resume game"} title={entry?"Close settings":"Resume game"}><X size={20}/></button>
           </div>
         </header>
         <div className="axe3d-pause__body">
           <nav className="axe3d-pause__rail axe3d-pause__scroller" aria-label="World menu navigation">
-            <span className="axe3d-pause__rail-label">ADVENTURE</span>
+            <span className="axe3d-pause__rail-label">{entry?'TITLE':'ADVENTURE'}</span>
             <button ref={resumeRef} type="button" className="axe3d-pause__resume" onClick={onClose}>
-              <Play size={17} fill="currentColor"/> Continue Game <span className="axe3d-pause__keycap">ESC</span>
+              <Play size={17} fill="currentColor"/> {entry?'Back to Title':'Continue Game'} <span className="axe3d-pause__keycap">ESC</span>
             </button>
             <div className="axe3d-pause__rail-separator"/>
             <span className="axe3d-pause__rail-label">OPTIONS</span>
-            {GAME3D_PAUSE_SECTIONS.map(section=>{
+            {availableSections.map(section=>{
               const Icon=MENU_ICONS[section.id],active=view===section.id;
               return <button key={section.id} type="button" aria-current={active?'page':undefined}
                 onClick={()=>selectView(section.id)}
@@ -225,11 +264,12 @@ export default function PauseMenu({
             </div> : <>
               {view==='overview'&&<>
                 <div className="axe3d-pause__hero">
-                  <span>WOLFVEIL · ADVENTURE</span>
-                  <h4>The path is yours.</h4>
-                  <p>Review your setup, then return to the living world. Other players and world systems are not paused.</p>
+                  <span>WOLFVEIL · {entry?'TITLE SETTINGS':'ADVENTURE'}</span>
+                  <h4>{entry?'Prepare your journey.':'The path is yours.'}</h4>
+                  <p>{entry?'Audio, graphics and controls use the same saved preferences as the in-game Escape menu.'
+                    :'Review your setup, then return to the living world. Other players and world systems are not paused.'}</p>
                   <button type="button" onClick={onClose}>
-                    <Play size={18} fill="currentColor"/> Return to World <ChevronRight size={17}/>
+                    <Play size={18} fill="currentColor"/> {entry?'Return to Title':'Return to World'} <ChevronRight size={17}/>
                   </button>
                 </div>
                 <div className="axe3d-pause__shortcut-grid">
@@ -266,6 +306,9 @@ export default function PauseMenu({
                   <Switch label="Automatically lock nearby enemies" checked={controls.autoTargetNearby}
                     description="Off by default. Leave off to keep camera and movement independent of enemy spawns; middle-click still locks targets manually."
                     onChange={()=>setAXEAutoTargetNearbyEnabled(!controls.autoTargetNearby)}/>
+                  <Switch label="Menu animations" checked={menuMotion}
+                    description="Animate the title and Escape menu. Reduced-motion system settings still take precedence."
+                    onChange={()=>updateMotion(!menuMotion)}/>
                 </div>
                 <div className="axe3d-pause__surface">
                   <h4 className="axe3d-pause__subhead">Quick reference</h4>
@@ -301,7 +344,7 @@ export default function PauseMenu({
                   <p className="axe3d-pause__help">Graphics changes are saved and applied to the existing renderer.</p>
                 </div>
               </div>}
-              {view==='session'&&<div className="axe3d-pause__surface">
+              {view==='session'&&!entry&&<div className="axe3d-pause__surface">
                 <h4 className="axe3d-pause__subhead">Leave the world</h4>
                 <p className="axe3d-pause__help">These actions end your current viewing session. They will not pause the online world.</p>
                 {typeof onCreateCharacter==='function'&&<button type="button" className="axe3d-pause__session-action"
@@ -322,8 +365,8 @@ export default function PauseMenu({
           </div>
         </div>
         <footer className="axe3d-pause__footer">
-          <span><span className="axe3d-pause__footer-spark"/> GAME 3D · ONLINE WORLD</span>
-          <span><kbd>ESC</kbd> {confirmAction?'Cancel':view==='overview'?'Resume':'Back to main menu'}</span>
+          <span><span className="axe3d-pause__footer-spark"/> GAME 3D · {entry?'TITLE SETTINGS':'ONLINE WORLD'}</span>
+          <span><kbd>ESC</kbd> {confirmAction?'Cancel':view==='overview'?(entry?'Close':'Resume'):'Back to main menu'}</span>
         </footer>
       </motion.section>
     </motion.div>}
