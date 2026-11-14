@@ -215,6 +215,7 @@ export default function GameView() {
     setRequestedCharacterTab(null);
     setFriendsListOpen(false);
     setClanOverlayOpen(false);
+    vortexOriginRef.current=null; // never carry a stale dungeon origin into a fresh Play
   },[phase,services.controller]);
 
   // Tear down combat audio when leaving GameView entirely.
