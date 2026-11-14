@@ -23,7 +23,7 @@ export function game3dPauseGraphicsDefaults(raw){
   const value=raw&&typeof raw==='object'?raw:{};
   return {
     ...value,
-    artStyle:value.artStyle==='original'?'original':'ink',
+    artStyle:['original','ink','atomic-ultra-sumi'].includes(value.artStyle)?value.artStyle:'ink',
     inkPalette:value.inkPalette==='classic'?'classic':'vibrant',
     quality:['low','medium','high','ultra'].includes(value.quality)?value.quality:'high',
     shadows:typeof value.shadows==='boolean'?value.shadows:true,
