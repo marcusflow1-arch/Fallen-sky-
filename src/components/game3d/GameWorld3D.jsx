@@ -136,6 +136,10 @@ import { xpForLevel, pickTier, getEnemyTierByName,
 import { attachContextGuard } from './webglContextGuard';
 import { createInkWashLook, resolveInkLevel, resolveInkPalette, readGraphicsSettings } from './render/inkWashLook';
 import { createAtomicUltraSumiMode } from './render/atomicUltraSumiMode.mjs';
+import {activateCloneUltraWorldGraphics} from './game3dPauseMenuModel.mjs';
+import {isInsideMeadowCircle,meadowGroundHeight}
+  from './wolfveil/WolfveilMeadowField.mjs';
+import {classifyBlazeBiome} from './render/BlazeBiomeLandscaping.mjs';
 import { buildGrassEnvironment } from './buildGrassEnvironment';
 import {createWolfveilVillage} from './wolfveil/WolfveilScene';
 import {installWolfveilImportedTown} from './wolfveil/WolfveilImportedTownScene.mjs';
@@ -467,10 +471,13 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     // this, three.js shadow-map pass crashes inside getUniforms() with
     // "Cannot read properties of null (reading 'trim')".
     const rendererGuard = attachContextGuard(renderer);
+    // Clone-only, one-time activation of the user's selected Ultra Max
+    // world style; never migrates inventory, characters or simulation state.
+    activateCloneUltraWorldGraphics(window.localStorage);
     // The world's look: sumi-e ink wash (render/inkWashLook.js), as the pause menu's Graphics settings say (or ?ink=).
     const inkLook = createInkWashLook({ renderer, guard: rendererGuard, level: resolveInkLevel(), palette: resolveInkPalette() });
     let livingInkWorld = null; // initialized only after the Game 3D Wolfveil roots exist
-    let atomicLook = null; // clone-only optional GPU shader/postprocessing preset
+    let atomicLook = null; // clone-only safe global vegetation material style
     window.__gw3dInkLook = inkLook; // the bench and reviews read and set its level
     const onGraphicsSettings = () => {
       inkLook.setPalette(resolveInkPalette());
@@ -677,17 +684,27 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       roots:[wolfveilVillage.world.group,livingMeadow?.root,importedSpawnTown?.root],
       level:resolveInkLevel(),
     }) : null;
-    // Clone preview only. A 1,000m² GPU meadow follows the player in eligible
-    // meadows; zero extra blades on paved town, roads or river/cave paths.
+    // The *existing* clone game scene is reused. GPU-instanced living grass
+    // streams across all eligible outdoor Wolfveil tiles, not one 1000m²
+    // demonstration patch. Trees keep their actual imported GLB materials.
     const atomicSettings=readGraphicsSettings();
     atomicLook=createAtomicUltraSumiMode({
-      scene,renderer,camera,sampleHeight:sampleGroundY,
+      scene,renderer,camera,guard:rendererGuard,worldRegion:region,
+      // Wolfveil terrain is authored at local Z; the world offset is +70.
+      // Analytic sampler avoids ~2,000 expensive ground raycasts per tile.
+      sampleHeight:region==='wolfveil'
+        ? (x,z)=>isInsideMeadowCircle(x,z-70)?
+          meadowGroundHeight(x,z-70):null
+        :sampleGroundY,
       quality:atomicSettings.quality||'high',
       enabled:atomicSettings.artStyle==='atomic-ultra-sumi',
       allowGrass:(x,z)=>region==='wolfveil'&&
+        isInsideMeadowCircle(x,z-70)&&
         !insideWolfveilImportedTown(x,z,3)&&
         wolfveilDistanceToRiver(x,z-70)>4&&
         wolfveilRouteClearance(x,z-70)>4,
+      biomeAt:({x,z})=>region==='wolfveil'?'meadow':
+        classifyBlazeBiome({region}),
     });
     window.__gw3dAtomicLook=atomicLook;
     mapReady = true;
