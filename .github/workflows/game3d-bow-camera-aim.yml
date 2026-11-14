@@ -1,0 +1,35 @@
+name: Game 3D Bow Aim and Spirit Bird
+on:
+  pull_request:
+    paths:
+      - 'src/components/game3d/GameWorld3D.jsx'
+      - 'src/components/game3d/rogueAttackBridge.jsx'
+      - 'src/components/game3d/combat/BowCameraAim.mjs'
+      - 'src/components/game3d/vfx/Game3DBowSpiritBird.mjs'
+      - 'tests/game3d-bow-camera-aim-spirit-bird.test.mjs'
+      - '.github/workflows/game3d-bow-camera-aim.yml'
+  push:
+    paths:
+      - 'src/components/game3d/GameWorld3D.jsx'
+      - 'src/components/game3d/rogueAttackBridge.jsx'
+      - 'src/components/game3d/combat/BowCameraAim.mjs'
+      - 'src/components/game3d/vfx/Game3DBowSpiritBird.mjs'
+      - 'tests/game3d-bow-camera-aim-spirit-bird.test.mjs'
+permissions:
+  contents: read
+jobs:
+  bow-aim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install app dependencies
+        run: npm ci --ignore-scripts
+      - name: Verify camera aiming, world occlusion, hit marker and original bird lifecycle
+        run: node --test tests/game3d-bow-camera-aim-spirit-bird.test.mjs
+      - name: Build Game 3D
+        run: npm run build
