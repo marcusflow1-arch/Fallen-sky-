@@ -3,6 +3,7 @@
 // Client-side preview encounter only: no XP, loot, server damage or quest grants.
 import * as THREE from 'three';
 import { getAXEEnemyStats } from '../axe/balance/AXEPowerBudget';
+import {createDragonLivingFireAttacks} from './DragonLivingFireAttacks.mjs';
 
 export const DRAGON_BOSS_ID = 'wolfveil_quarry_dragon';
 export const DRAGON_BOSS_MODEL_URL =
@@ -79,6 +80,7 @@ export function createQuarryDragonBoss({
   let target = null;
   let targetY = 0;
   let telegraph = null;
+  let attackSequence=0;
   const groundAt = (x, z) => {
     const y = sampleGroundY?.(x, z);
     return Number.isFinite(y) ? y : null;
@@ -88,6 +90,10 @@ export function createQuarryDragonBoss({
     const p = getPlayerPosition?.();
     return p && p.alive !== false && Number.isFinite(p.x) && Number.isFinite(p.z) ? p : null;
   };
+  const livingFire=createDragonLivingFireAttacks({
+    scene,groundAt,getPlayer:validPlayer,applyPlayerDamage,
+    bossId:DRAGON_BOSS_ID,
+  });
 
   function spawnModel(gltf) {
     if (disposed) return;
@@ -109,14 +115,14 @@ export function createQuarryDragonBoss({
       }
       boss = {
         id: DRAGON_BOSS_ID, bossDefinitionId: DRAGON_BOSS_ID,
-        name: 'Quarry Dragon', title: 'Aerial Slam Boss', color: 0xc55f37,
+        name: 'Quarry Dragon', title: 'Living Elemental Storm', color: 0xc55f37,
         isBoss: true, customMovement: true, group, mixer,
         alive: true, dying: false, defeated: false,
         deathAction: null, deathDuration: 2.4, deathTimer: 0, deathStarted: false,
         hp: maxHp, maxHp, hpTanks: 10, hpTankSize: Math.ceil(maxHp / 10),
         derived, level: 25, xpReward: 0, speed: 0,
         tintMaterials: materials, fadeMaterials: materials,
-        metadata: { region: 'wolfveil', site: 'quarry', attack: 'aerial_slam', previewOnly: true },
+        metadata: { region: 'wolfveil', site: 'quarry', attacks:['fire_rain','breath_stream','sky_cyclone','aerial_slam'], previewOnly: true },
       };
       bossEntities.push(boss);
       setBosses?.(bossEntities);
@@ -174,6 +180,7 @@ export function createQuarryDragonBoss({
     }
     if (!boss || !boss.alive || boss.dying || boss.defeated || !boss.group.visible) {
       if (telegraph) telegraph.visible = false;
+      livingFire.cancel();
       return;
     }
 
@@ -181,12 +188,26 @@ export function createQuarryDragonBoss({
     if (phase === 'idle') {
       cooldown -= dt;
       if (cooldown <= 0 && player && planarDistance(player, anchor) <= DRAGON_SLAM.engageDistance) {
-        beginSlam(player);
+        // Cycle through real rain, sustained breath, descending tornado
+        // and the original aerial slam. All VFX warn before dealing damage.
+        const kind=['rain','breath','cyclone','slam'][attackSequence%4];
+        attackSequence++;
+        if(kind==='slam')beginSlam(player);
+        else{
+          const aimed=clampDragonSlamTarget(anchor,player);
+          if(aimed&&livingFire.start(kind,aimed,boss.group.position)){
+            phase='elemental';timer=0;onEngage?.(boss);
+          }
+        }
       }
       return;
     }
 
     timer += dt;
+    if(phase==='elemental'){
+      if(livingFire.update(dt)){phase='recover';timer=0;}
+      return;
+    }
     if (phase === 'telegraph' && timer >= DRAGON_SLAM.warningSeconds) {
       phase = 'ascend';
       timer = 0;
@@ -209,6 +230,7 @@ export function createQuarryDragonBoss({
 
   function dispose() {
     disposed = true;
+    livingFire.dispose();
     if (telegraph) {
       scene.remove(telegraph);
       telegraph.geometry.dispose();
