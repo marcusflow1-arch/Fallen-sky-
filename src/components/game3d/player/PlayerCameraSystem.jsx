@@ -135,7 +135,7 @@ export class PlayerCameraSystem {
       this.autoLockLastRef=null;
     }
     const global=typeof window!=='undefined'?window:null;
-    const disabled=!global||!isAXEAutoTargetNearbyEnabled()||
+    const disabled=!global||this.aim?.bowEquipped||!isAXEAutoTargetNearbyEnabled()||
       !isEveAdamGame3DHero(model,getActiveCharacter())||
       global.__axeUiModalOpen||global.__axeServiceModeOpen||
       global.__axeWorldMapOpen||global.__axePauseMenuOpen||
@@ -227,8 +227,10 @@ export class PlayerCameraSystem {
     const o=this.orbit.current;
     const lockedTarget=this.lockOnTargetRef.current;
     const aimBlend=this.aim?this.aim.update(dt):0;
-    // Aiming owns the framing, so lock-on framing steps aside while it is held.
-    if(lockedTarget?.group&&(!lockedTarget.aliveRef||lockedTarget.aliveRef())&&aimBlend<=.0001){
+    // Mouse-driven bow reticle owns the direction even with a previously
+    // selected/auto-locked enemy. Lock selection must not pull the camera away.
+    if(lockedTarget?.group&&(!lockedTarget.aliveRef||lockedTarget.aliveRef())&&
+       aimBlend<=.0001&&!this.aim?.bowEquipped){
       const targetPos=lockedTarget.group.position;
       tmpToTarget.set(targetPos.x-model.position.x,0,
         targetPos.z-model.position.z);
@@ -269,7 +271,7 @@ export class PlayerCameraSystem {
     }
 
     // An aiming player keeps their selected target; it resumes on release.
-    if(lockedTarget&&aimBlend<=.0001)this.lockOnTargetRef.current=null;
+    if(lockedTarget&&aimBlend<=.0001&&!this.aim?.bowEquipped)this.lockOnTargetRef.current=null;
     if(!Number.isFinite(o.yaw))o.yaw=0;
     if(!Number.isFinite(o.pitch))o.pitch=GAME3D_GAME2_CAMERA.pitch;
     const pos=model.position;
