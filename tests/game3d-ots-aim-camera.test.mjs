@@ -42,12 +42,13 @@ test('shoulder swap mirrors the horizontal offset', () => {
   assert.ok(Math.abs(right.eye.z - left.eye.z) < 0.001, 'only the lateral offset mirrors');
 });
 
-test('OTS pose sits behind and beside the character at a narrow fov', () => {
+test('OTS pose keeps third-person shoulder framing with only mild zoom', () => {
   const pose = computeOTSAimPose({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0.18, side: 1 });
   assert.ok(pose.eye.z > 0.8, 'camera is behind a character facing -Z');
   assert.ok(pose.eye.x > 0.4, 'camera is over the right shoulder');
   assert.ok(pose.eye.y > pose.anchor.y - 0.1, 'camera stays at shoulder height');
-  assert.ok(OTS_AIM.fov < 45, 'aiming narrows the field of view');
+  assert.ok(OTS_AIM.fov >= 44 && OTS_AIM.fov <= 48, 'aiming is only slightly tighter than normal follow view');
+  assert.ok(OTS_AIM.boom >= 2.7, 'aiming does not shove the camera into the avatar');
   assert.ok(pose.target.z < -20, 'aim axis looks far ahead');
 });
 
