@@ -143,7 +143,7 @@ import {classifyBlazeBiome} from './render/BlazeBiomeLandscaping.mjs';
 import { buildGrassEnvironment } from './buildGrassEnvironment';
 import {createWolfveilVillage} from './wolfveil/WolfveilScene';
 import {createVortexLakeLandmark} from './wolfveil/VortexLakeScene.mjs';
-import {VORTEX_LAKE} from './wolfveil/VortexLakeLayout.mjs';
+import {VORTEX_LAKE,isVortexLakeWetSurface} from './wolfveil/VortexLakeLayout.mjs';
 import {installWolfveilImportedTown} from './wolfveil/WolfveilImportedTownScene.mjs';
 import {WOLFVEIL_PLAYER_TOWN_SPAWN,wolfveilQuestNpcSpot,insideWolfveilImportedTown} from './wolfveil/WolfveilImportedTownLayout.mjs';
 import {createWolfveilLivingMeadow} from './wolfveil/WolfveilLivingMeadow';
@@ -716,6 +716,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         isInsideMeadowCircle(x,z-70)&&
         !insideWolfveilImportedTown(x,z,3)&&
         wolfveilDistanceToRiver(x,z-70)>4&&
+        !isVortexLakeWetSurface(x,z-70,2)&&
         wolfveilRouteClearance(x,z-70)>4,
       biomeAt:({x,z})=>region==='wolfveil'?'meadow':
         classifyBlazeBiome({region}),
