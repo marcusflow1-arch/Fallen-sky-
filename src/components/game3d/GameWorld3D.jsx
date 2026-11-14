@@ -1313,6 +1313,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const otsCameraColliders = createOTSCameraColliders({ groundMeshes, roots: () => [wolfveilVillage?.world?.group, importedSpawnTown?.root] }); const playerCameraSystem = new PlayerCameraSystem({ camera, orbit, modelRef, lockOnTargetRef, groundMeshes, aim: otsAim.current, cameraColliders: otsCameraColliders });
     // Clone already owns the tiny OTS aim dot. Add only the confirmed-hit
     // brackets and original spirit-bird animation, not a second crosshair.
+    const bowOccluders=otsCameraColliders;
+    window.__gw3dBowOccluders=bowOccluders;
     const bowVisuals=createGame3DBowAimVisuals({scene,container,showDot:false});
     const onBowVerifiedHit=()=>bowVisuals.confirmHit();
     window.addEventListener('game3dVerifiedBowHit',onBowVerifiedHit);
@@ -2715,7 +2717,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         updateOTSAimFrame({camera,aim:otsAim.current,colliders:otsCameraColliders(),
           extraMeshes:[...enemies,...bossEntities].map(e=>e.group).filter(Boolean)});
         bowVisuals.update(delta,{
-          active:getActiveWeaponPath()==='ranged'&&!!otsAim.current.aiming&&!isMountedRef.current,
+          active:getActiveWeaponPath()==='ranged'&&!isMountedRef.current,
           blocked:entryModeRef.current||window.__axeUiModalOpen||
             window.__axeServiceModeOpen||window.__axeWorldMapOpen||
             window.__axePauseMenuOpen||window.__axeDialogueOpen,
@@ -3957,6 +3959,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       impactFeedback.dispose();
       window.removeEventListener('axeDuelDefenseResolved', onDuelDefenseResolved);
       duelDefenseFeedback.dispose();
+      if(window.__gw3dBowOccluders===bowOccluders)
+        window.__gw3dBowOccluders=null;
       window.removeEventListener('game3dVerifiedBowHit',onBowVerifiedHit);
       bowVisuals.dispose();
       weaponTrails.dispose();
