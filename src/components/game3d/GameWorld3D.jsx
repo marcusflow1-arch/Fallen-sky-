@@ -676,6 +676,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const importedSpawnTown=region==='wolfveil'?installWolfveilImportedTown(scene,{onReady:()=>{livingInkWorld?.refresh();for(const npc of questNPCs)snapToGround(npc.group,0);}}):null;
     const vortexLake=region==='wolfveil'
       ?createVortexLakeLandmark(scene,{
+        sampleGroundY,
         addGroundMesh:mesh=>groundMeshes.push(mesh),
         removeGroundMesh:mesh=>{
           const i=groundMeshes.indexOf(mesh);
