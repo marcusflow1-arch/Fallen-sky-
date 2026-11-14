@@ -165,6 +165,7 @@ function WeaponStack({ playerLevel }) {
     const handler=e=>{
       if(e.repeat||e.defaultPrevented||e.ctrlKey||e.altKey||e.metaKey||
         window.__axeServiceModeOpen||window.__axeWorldMapOpen||
+        window.__axePauseMenuOpen||window.__axeUiModalOpen||window.__axeDialogueOpen||
         e.target?.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName||''))return;
       const key=e.code;
       if(key!=='ArrowLeft' && key!=='ArrowRight' && key!=='ArrowUp' &&
