@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js';
+import {classifyTreeMaterialPart} from '../render/LivingTreeWindPhysics.mjs';
 import {
  WOLFVEIL_UPLOADED_LANDSCAPE_ASSETS as ASSETS,
  chooseWolfveilOwnerAssetAnchors,
@@ -187,13 +188,21 @@ export function installWolfveilOwnerLandscapeModels(world,{
    instanced.castShadow=kind==='tree'; // existing authoritative trunk colliders
    instanced.raycast=()=>{}; // never a duplicate floor/interaction target
    instanced.userData={decorativeOnly:true,
-     existingTrunkCollider:kind==='tree',source:'owner_uploaded_model'};
+     existingTrunkCollider:kind==='tree',source:'owner_uploaded_model',
+     blazeTreeFamily:kind==='tree'?classifyTreeMaterialPart(
+       src.name+' '+(Array.isArray(src.material)
+         ?src.material.map(m=>m?.name||'').join(' ')
+         :(src.material?.name||'')),'foliage'):undefined,
+     blazeTreeUpAxis:kind==='tree'?'y':undefined,
+     blazeImportedOwnerTree:kind==='tree'};
    group.add(instanced);
    records.push({mesh:instanced,material,geometry});
   }
   loadedKinds.add(kind);
   loaded++;
   announce();
+  if(kind==='tree'&&typeof window!=='undefined')
+    window.dispatchEvent(new Event('axe:owner-tree-ready'));
  }
  const gltfLoader=new GLTFLoader(),fbxLoader=new FBXLoader();
  for(const kind of ['grass','plants','garden','tree']){
