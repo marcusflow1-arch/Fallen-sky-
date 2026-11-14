@@ -99,6 +99,7 @@ export default function GameView() {
   const [creatorOnLogin, setCreatorOnLogin] = useState(false);
   const [worldRegion,setWorldRegion]=useState('wolfveil');
   const [portalReturn,setPortalReturn]=useState(false);
+  const vortexOriginRef=useRef(null); // remember portal source across dungeon remount
   const [workflowSpawn, setWorkflowSpawn] = useState(null);
   const [resumeCheckpoint, setResumeCheckpoint] = useState(null);
   const services = useAXEServiceMode();
@@ -234,7 +235,16 @@ export default function GameView() {
       window.dispatchEvent(new Event('game3dCheckpointFlush'));
       setWorkflowSpawn(null);
       setResumeCheckpoint(null);
-      setPortalReturn(target==='wolfveil' ? (event.detail?.returnToGate==='astral'?'astral':event.detail?.returnToGate===true) : false);
+      if(target!=='wolfveil'){
+        vortexOriginRef.current=event.detail?.sourcePortal==='vortex'?'vortex':null;
+        setPortalReturn(false);
+      }else{
+        const fromVortex=vortexOriginRef.current==='vortex';
+        setPortalReturn(fromVortex?'vortex':
+          event.detail?.returnToGate==='astral'?'astral':
+          event.detail?.returnToGate===true);
+        vortexOriginRef.current=null;
+      }
       setWorldRegion(target);
     };
     window.addEventListener('game3dPortalTravel',onPortalTravel);
