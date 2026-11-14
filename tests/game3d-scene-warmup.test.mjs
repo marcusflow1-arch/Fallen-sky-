@@ -57,3 +57,21 @@ test('prioritizes nearby enemy roots and ignores far enemies', async () => {
   assert.equal(m.calls.compiled[0], near);
   manager.dispose();
 });
+
+test('quest enemies in combat range reserve frame time for actual gameplay', async () => {
+  const m = mock();
+  m.host.__gw3dEnemies = [{
+    isQuestSpawn: true, alive: true, dying: false,
+    group: { visible: true, position: { x: 12, z: 2 } },
+  }];
+  const manager = createGame3DSceneWarmup({
+    scene: m.scene, camera: {}, renderer: m.renderer, host: m.host,
+  });
+  await m.next();
+  assert.equal(m.calls.compiled.length, 0);
+  assert.equal(m.calls.textures.length, 0);
+  m.host.__gw3dEnemies[0].alive = false;
+  await m.next();
+  assert.equal(m.calls.compiled[0], m.mesh);
+  manager.dispose();
+});
