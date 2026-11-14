@@ -143,7 +143,7 @@ export function createAtomicUltraSumiMode({
 }={}){
   if(!scene||!renderer||!camera)throw Error('Atomic mode needs a Three.js scene, renderer, camera');
   const shared={time:{value:0},mode:{value:2},energy:{value:1},wind:{value:.52}};
-  const materials=new Map(),originals=new Map(),size=new THREE.Vector2();
+  const materials=new Map(),originals=new Map(),hiddenGrass=new Map(),size=new THREE.Vector2();
   const hulls=[];let hullMaterial=null;
   let active=false,disposed=false,composer=null,ink=null,haze=null;
   let meadow=null,sparks=null,age=0,lastRefresh=-10,lastMeadow=-10;
@@ -183,6 +183,13 @@ export function createAtomicUltraSumiMode({
   function refresh(){
     if(!active)return;
     scene.traverse(mesh=>{
+      // Do not stack legacy hundreds-of-thousands of valley blades beneath
+      // our experimental 60k GPU field. Visual-only change, restored on exit.
+      if(mesh?.isInstancedMesh && /^SWV_(?:Individual|Near)_GrassBlades_/.test(mesh.name||'')){
+        if(!hiddenGrass.has(mesh))hiddenGrass.set(mesh,mesh.visible);
+        mesh.visible=false;
+        return;
+      }
       if(originals.has(mesh))return;
       const family=classify(mesh);if(!family)return;
       originals.set(mesh,mesh.material);
@@ -195,6 +202,9 @@ export function createAtomicUltraSumiMode({
     for(const [mesh,original] of originals)
       if(owned.has(mesh.material))mesh.material=original;
     originals.clear();
+    for(const [mesh,wasVisible] of hiddenGrass)
+      if(mesh.visible===false)mesh.visible=wasVisible;
+    hiddenGrass.clear();
   }
   function resize(){
     if(!composer)return;
@@ -263,6 +273,15 @@ export function createAtomicUltraSumiMode({
     if(!active||disposed)return false;
     if(renderer.getContext()?.isContextLost?.())return false;
     ensureComposer();
+    renderer.getSize(size);
+    const effectiveDpr=renderer.getPixelRatio?.()||1;
+    const expectedW=Math.max(1,Math.floor(size.x*effectiveDpr));
+    // The clone's AdaptiveGraphics adjusts DPR without a window resize.
+    // Composer and Sobel texel offsets must follow that change.
+    if(composer.readBuffer.width!==expectedW){
+      composer.setPixelRatio(effectiveDpr);
+      resize();
+    }
     composer.passes[0].camera=viewCamera;
     composer.render();
     return true;
