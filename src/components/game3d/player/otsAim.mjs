@@ -111,7 +111,8 @@ const _aimAxis = new THREE.Vector3(0, 1, 0);
  * from the crosshair.
  */
 export function applyOTSAimFacing(model, orbitYaw, aim, delta = 0) {
-  if (!model || !aim?.aiming || aim.blend <= 0.02) return false;
+  if (!model || !aim || (!aim.aiming && !aim.bowEquipped) ||
+      (aim.blend <= 0.02 && !aim.bowEquipped)) return false;
   const yaw = finite(orbitYaw, 0) + Math.PI;
   _aimFacing.setFromAxisAngle(_aimAxis, yaw);
   const rate = 1 - Math.exp(-14 * clamp(finite(delta, 0), 0, 0.05));
