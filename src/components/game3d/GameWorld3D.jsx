@@ -1526,7 +1526,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       });
 
       // Wire up the quest enemy spawner — set on the ref so the React layer can call it
-      spawnQuestEnemiesRef.current = createQuestEnemySpawner({ scene, enemies, loader, snapToGround, walkClipPromise, idleClipPromise, setEnemyCount });
+      spawnQuestEnemiesRef.current = createQuestEnemySpawner({ scene, camera, renderer, enemies, loader, snapToGround, walkClipPromise, idleClipPromise, setEnemyCount });
       window.__gw3dSpawnQuestEnemies = spawnQuestEnemiesRef.current;
 
       // Load player animation clips once — bind to player AND reuse for quest NPC idle
