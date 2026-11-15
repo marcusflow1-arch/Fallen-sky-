@@ -370,6 +370,9 @@ export default function PauseMenu({
                   <Switch label="Echo Chronicle book" checked={community.echo}
                     description="Keep the small book launcher next to the portrait. Incoming conversations remain accessible."
                     onChange={()=>changeCommunity({...community,echo:!community.echo})}/>
+                  <Switch label="Mini Games events button" checked={community.miniGames}
+                    description="Show the small sports and tabletop event icon next to the Chronicle controls."
+                    onChange={()=>changeCommunity({...community,miniGames:!community.miniGames})}/>
                   <Switch label="Players online HUD badge" checked={community.online}
                     description="Show an optional small online count during gameplay. The live count remains here either way."
                     onChange={()=>changeCommunity({...community,online:!community.online})}/>
