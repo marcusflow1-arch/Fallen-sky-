@@ -27,7 +27,7 @@ const GESTURES = [
   { id: 'farewell', label: 'Farewell' },
 ];
 
-export default function EchoChronicleOverlay({ suppressed = false, onOpenQuestLogbook }) {
+export default function EchoChronicleOverlay({ suppressed = false, showLauncher = true, onOpenQuestLogbook }) {
   const { user } = useAuth();
   const userId = user?.id;
   const [sessions, setSessions] = useState([]);
@@ -192,12 +192,25 @@ export default function EchoChronicleOverlay({ suppressed = false, onOpenQuestLo
     await run('gesture', { sessionId: selected.id, gestureId });
   };
 
+  // The small HUD launcher is optional; the complete Chronicle remains
+  // accessible through the native Escape > HUD & Community page.
+  useEffect(() => {
+    const openBook=()=>{
+      if(suppressed)return;
+      setBookOpen(true);
+      setHiddenId(null);
+      document.exitPointerLock?.();
+    };
+    window.addEventListener('game3dOpenEchoChronicle',openBook);
+    return ()=>window.removeEventListener('game3dOpenEchoChronicle',openBook);
+  },[suppressed]);
+
   if (!userId) return null;
 
   return (
     <>
       {/* Accessible at any time, without imposing an interaction on solo players. */}
-      {!suppressed && (
+      {!suppressed && showLauncher && (
         <button type="button"
           onClick={() => {
             document.exitPointerLock?.();
@@ -205,10 +218,10 @@ export default function EchoChronicleOverlay({ suppressed = false, onOpenQuestLo
             setHiddenId(selected?.id || null);
           }}
           className="axe-echo-launch"
-          title="Open the Echo Chronicle memory book under the HUD portrait"
+          title={`Open Echo Chronicle · ${memories.length} saved encounters` }
           aria-label="Open Echo Chronicle memory book" aria-expanded={bookOpen}>
           <span className="axe-echo-launch-glyph"><BookOpen size={20} /></span>
-          <span><strong>Echo Chronicle</strong><small>{memories.length} saved encounters • Open memory book</small></span>
+          <span className="sr-only">Echo Chronicle · {memories.length} saved encounters</span>
         </button>
       )}
       {!suppressed && openSessions.length > 0 && (
