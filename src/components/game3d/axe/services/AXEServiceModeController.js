@@ -33,7 +33,7 @@ export function createAXEServiceModeController({ summon, enter, leave, canOpen =
     async open(groupId, { serviceId, itemId = null, stationId = null } = {}) {
       const group = getAXEServiceGroup(groupId);
       if (!group || disposed) return;
-      const denial = canOpen(groupId);
+      const denial = canOpen(group.id);
       if (denial) { publish({ message: denial }); return; }
       const token = ++generation;
       release(state.stationId);
@@ -41,19 +41,19 @@ export function createAXEServiceModeController({ summon, enter, leave, canOpen =
       // controls immediately; a physical workstation is an enhancement, not a
       // prerequisite that may block the entire service if world loading stalls.
       const needsStation = group.presentation === 'world';
-      publish({ phase: 'active', expanded: true, groupId, serviceId: group.serviceIds.includes(serviceId)
+      publish({ phase: 'active', expanded: true, groupId:group.id, serviceId: group.serviceIds.includes(serviceId)
         ? serviceId : group.defaultServiceId, itemId, stationId: null, shared: false,
         uiOnly: true, message: needsStation ? 'Preparing the 3D workstation… You can use these controls now.' : '' });
       if (!needsStation) return;
       let result;
-      try { result = await (stationId ? enter(stationId) : summon(groupId)); }
+      try { result = await (stationId ? enter(stationId) : summon(group.id)); }
       catch (error) { result = { ok: false, reason: error?.message || 'Workstation unavailable' }; }
       if (disposed || token !== generation) {
         // Never release the current session when two requests reused the same station.
         if (result?.station?.id !== state.stationId) release(result?.station?.id);
         return;
       }
-      const deniedAfterLoad = canOpen(groupId);
+      const deniedAfterLoad = canOpen(group.id);
       if (deniedAfterLoad) {
         release(result?.station?.id);
         this.close(deniedAfterLoad);
@@ -63,7 +63,7 @@ export function createAXEServiceModeController({ summon, enter, leave, canOpen =
         this.close(String(result.reason).replaceAll('_', ' '));
         return;
       }
-      if (result?.ok && result.station?.groupId && result.station.groupId !== groupId) {
+      if (result?.ok && result.station?.groupId && result.station.groupId !== group.id) {
         release(result.station.id);
         publish({ phase: 'active', stationId: null, shared: false, uiOnly: true,
           message: 'The world returned a different workstation. The service controls remain available.' });
