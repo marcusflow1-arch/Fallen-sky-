@@ -220,3 +220,39 @@
     top: 0 !important;
   }
 }
+
+
+/* Clone: release ~10% of the top vertical footprint for every Service
+ * EXCEPT Blacksmith. The prior top:0 rule remains for the forge only.
+ * These selectors beat lazily imported panel insets without changing
+ * horizontal positioning, bottom offsets, or scrollable panel internals. */
+.game3d-view .axe-service-workspace[data-service-extent="viewport-top"]:not(.axe-service-workspace--blacksmith) {
+  top:clamp(62px,10dvh,110px)!important;
+}
+/* Keep the existing Seven Services navigation interactive even when a service
+ * contains glass panels that overlap it. The nav and HUD are otherwise untouched.
+ * Jade HUD is pointer-events:none; only the actual service buttons opt in. */
+.game3d-view[data-service-mode="true"] .jade-hud {z-index:90;}
+.game3d-view[data-service-mode="true"] .jade-services-navigation {
+  z-index:92;pointer-events:auto;isolation:isolate;
+}
+.game3d-view[data-service-mode="true"] .jade-services-navigation button {
+  pointer-events:auto;
+}
+/* Companion spans the full width of the game window; retain its own vertical
+ * sizing and interior scroll areas. The original fixed 1648px aspect-derived
+ * width was leaving noticeable horizontal gaps on wide monitors. */
+.game3d-view .axe-service-workspace[data-service-extent="viewport-top"].axe-service-workspace--companion {
+  left:0!important;right:0!important;
+}
+.game3d-view .axe-service-workspace--companion .axe-service-progression {
+  width:100%;max-width:none;
+}
+.game3d-view .axe-service-workspace--companion .axe-comp-root {
+  width:100%;max-width:none;
+}
+@media(max-width:760px) {
+  .game3d-view .axe-service-workspace[data-service-extent="viewport-top"]:not(.axe-service-workspace--blacksmith) {
+    top:clamp(52px,10dvh,85px)!important;
+  }
+}
