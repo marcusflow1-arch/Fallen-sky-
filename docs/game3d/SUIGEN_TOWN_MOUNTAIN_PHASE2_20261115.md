@@ -5,13 +5,13 @@
 ## Built in this pull request
 
 ### A town large enough to traverse
-- A **~588 × 566m planning envelope** across the existing 2,400m map.
+- A **~588 × 684m planning envelope** across the existing 2,400m map.
 - Sixty deterministic original plot IDs distributed across western and eastern arcs, with the historic original canal and Acropolis center left intact.
 - Twelve signed merchant destinations: blacksmith, weapons, health-pill apothecary, general supplies, materials exchange, wardrobe, spirituality, inn, tavern, stables, guild and curios.
-- Five named main avenues / crossing routes with terrain-following stone sections and edge details.
+- Nine linked road sections with terrain-following stones and edge details. The eastern homes and avenue bend around the protected water-vortex basin; the northern crossing rejoins the street network.
 - All 60 generated buildings have enterable front sliding doors, textured underside roof surfaces, ceramic roof pattern, wood/plaster walls, molded corners/trim, window glass, foundations, and working numeric wall/door collision.
 - Interiors include finished ground floors, kitchen center island, refrigerator, cabinets, counters, sink/hob, dining seating, sitting area, framed art, decorative lamps, furniture. Most residences include a second storey with bedrooms, furnishings, continuous floor panels with stairwell opening, a modeled wooden stair of **18 individual climbable treads** and glass/wood rails.
-- Shared `InstancedMesh` geometry/material batches reduce decorative draw calls. A merged non-rendered collider provides actual walkable floors, porches and stair treads.
+- Shared `InstancedMesh` geometry/material batches, frustum culling, and indexed grid-based O(1) terrain height samples reduce load and draw costs. A merged non-rendered collider provides actual walkable floors, porches and stair treads.
 - A **smooth, clone-only terrain grading pass** adjusts original glTF terrain in planned home footprints and blends to nearby slopes over 10m. This is necessary: an offline source-terrain sample found up to **19m** of front-door elevation mismatch in the original steep hillside. The original source asset and Classic landscape remain unchanged.
 
 ### Real shop interactions
@@ -24,7 +24,7 @@
 - The original Acropolis/Canal, imported 26 Abyss stairs and deep vault coordinates are preserved.
 - Added 156 finer 0.17m-approx. risers along the original 26-step 2.5m-descending corridor with explicit raycastable step geometry, reinforcement boulders and retaining rock edges.
 - Cut a narrow corridor from the **Suigen copy** of the imported terrain mesh only. Otherwise the existing mountains rise dozens of metres **above** the −25m vault and the added steps remain buried and impossible to traverse.
-- Added a new water-vortex effect rooted in the actual Suigen mountain surface near (205,390), replacing the visually mismatched Classic effect at Y=82.6 while Suigen is selected.
+- Added a new water-vortex effect rooted in the actual Suigen mountain surface near (205,390), with a graded shallow lake basin, reflective water and energy ribbons, replacing the visually mismatched Classic effect at Y=82.6 while Suigen is selected.
 - Added proximity portals routing to the game's already-existing, separately loaded **five-area Lunar Cave** and **Astral Dungeon** scenes. Existing quest/progression systems still govern encounters; no new XP or loot awards are fabricated here.
 - Added POI IDs for the town, keep, bamboo shrine, Abyss, celestial gate and vortex for subsequent quest authoring. **POI registry does not mean new quests have been implemented.**
 
@@ -53,6 +53,8 @@
 - `src/components/game3d/worlds/loadSuigenWorld.mjs`
 - `src/components/game3d/GameWorld3D.jsx`
 - `src/pages/GameView.jsx`
+- `src/components/game3d/worlds/SuigenTerrainHeight.mjs`
 - `tests/game3d-suigen-town-upgrade.test.mjs`
+- `tests/game3d-suigen-terrain-height.test.mjs`
 
 **Validation category:** source-level invariants and syntax checks on pure JS modules, plus geometric inspection of the uploaded source terrain. No native npm build or logged-in Play test could be run from this connected environment. Do not claim that a source check proves the player can physically enter every home at runtime.
