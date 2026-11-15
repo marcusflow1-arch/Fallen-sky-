@@ -64,7 +64,7 @@ import { getLoadout, cycleSkillPreset, startCooldown as startSkillCooldown, tick
 import { castSkill } from './skills/skillExecutor';
 import { getSkillById } from './skills/skillRegistry';
 import { getSkillMasteryLevel } from './skills/skillMasteryStore';
-import { isMaxMasteryChargeUnlocked, getSkillChargeStatus, canAcceptFinisherChain, skillCombatFamily } from './combat/ChargedSkillRules';
+import { isChargeableCombatSkill, getSkillChargeStatus, canAcceptFinisherChain, skillCombatFamily } from './combat/ChargedSkillRules';
 import { createKillFlowCounter, isKillFlowCastEligible } from './combat/KillFlowCounter.mjs';
 import { AXE_AOE_CHANNEL, isAOEChannelUnlocked } from './combat/ContinuousAOERules.mjs';
 import { pickForwardCombatTargets } from './combat/FreeAimCombatTargets';
@@ -2023,7 +2023,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
               isAOEChannelUnlocked(skill, getSkillMasteryLevel(skillId))) {
             heldAOEKeys.set(k, { slotIndex, skillId,
               token: 'axe_aoe_' + Date.now() + '_' + k, at: Date.now(), started: false });
-          } else if (isMaxMasteryChargeUnlocked(skill, getSkillMasteryLevel(skillId))) {
+          } else if (isChargeableCombatSkill(skill, getSkillMasteryLevel(skillId))) {
             const activeDuel = window.__activeDuel;
             const chargeId = activeDuel && skill?.skill_type === 'ACTIVE_ATTACK'
               ? `axech${Date.now().toString(36)}_${Math.random().toString(36).slice(2,12)}`
