@@ -19,7 +19,7 @@ test('one Game 3D menu serves title and in-world without exposing leave-world ac
   assert.match(pause,/entry\?'Back to Title':'Continue Game'/);
   assert.match(pause,/entry\?'Return to Title':'Return to World'/);
   assert.deepEqual(GAME3D_PAUSE_SECTIONS.map(section=>section.id),
-    ['overview','audio','controls','graphics','session']);
+    ['overview','audio','controls','graphics','community','session']);
 });
 
 test('audio graphics controls and menu motion preserve the existing live settings backend',()=>{
