@@ -60,7 +60,7 @@ function ItemSymbol({ item }) {
   return item?.kind === 'costume' ? <Shirt size={34}/> : <Gem size={34}/>;
 }
 
-export default function AXEAppearanceWorkspace({ serviceId = 'cape', stationMessage = '', initialTab = null }) {
+export default function AXEAppearanceWorkspace({ serviceId = 'character', stationMessage = '', initialTab = null, onClose }) {
   const vanity = useLive(subscribeAXEVanity, getAXEVanityState);
   const costumes = useLive(subscribeAXECostumes, getAXECostumeState);
   const capes = useLive(subscribeAXECapes, getAXECapeState);
@@ -182,6 +182,8 @@ export default function AXEAppearanceWorkspace({ serviceId = 'cape', stationMess
       <div><h2>Character</h2><p>Character attributes, equipped gear, outfits and appearance.</p></div>
       {stationMessage && <p className="axe-app-placement-note" role="status">
         <span aria-hidden="true">ⓘ</span>{stationMessage}</p>}
+      {onClose&&<button type="button" data-service-close className="axe-app-unified-close"
+        aria-label="Close Character" onClick={onClose}>Close <X size={15}/></button>}
     </div>
     <nav className="axe-app-tabs" aria-label="Character and appearance tabs">
       {TAB_NAMES.map(name => <button type="button" key={name} aria-pressed={tab === name}
