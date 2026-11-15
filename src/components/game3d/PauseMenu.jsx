@@ -14,6 +14,8 @@ import {GAME3D_PAUSE_SECTIONS,game3dPauseEscape,
 import {readGame3DCommunityHUD,saveGame3DCommunityHUD,GAME3D_COMMUNITY_HUD_EVENT}
   from './hud/game3dCommunityHUDSettings.mjs';
 import {RENDER_STATS_STORAGE_KEY,isRenderStatsEnabled} from './debug/renderStats';
+import {CLONE_GPU_PROFILE_KEY,CLONE_GPU_PROFILES,readCloneGPUProfile,
+  normalizeCloneGPUProfile} from './performance/AdaptiveGraphics.mjs';
 import './PauseMenu.css';
 
 const MENU_ICONS={overview:Gamepad2,audio:AudioLines,controls:Keyboard,
@@ -75,6 +77,8 @@ export default function PauseMenu({
   const [gpuStats,setGpuStats]=useState(()=>
     isRenderStatsEnabled(typeof window==='undefined'?'':window.location.search,
       typeof window==='undefined'?null:window.localStorage));
+  const [gpuProfile,setGpuProfile]=useState(()=>
+    typeof window==='undefined'?'auto':readCloneGPUProfile(window));
   const [menuMotion,setMenuMotion]=useState(()=>{
     try{return localStorage.getItem('game3d_menu_motion')!=='false';}
     catch{return true;}
@@ -112,6 +116,7 @@ export default function PauseMenu({
     if(document.pointerLockElement)document.exitPointerLock?.();
     setCommunity(readGame3DCommunityHUD());
     setGpuStats(isRenderStatsEnabled(window.location.search,window.localStorage));
+    setGpuProfile(readCloneGPUProfile(window));
     // Refresh the same graphics settings written from either entry or in-world.
     try{setGraphics(activateCloneUltraWorldGraphics(localStorage));}
     catch{setGraphics(game3dPauseGraphicsDefaults(null));}
@@ -184,6 +189,13 @@ export default function PauseMenu({
     setGpuStats(enabled);
     try{localStorage.setItem(RENDER_STATS_STORAGE_KEY,enabled?'1':'0');}catch{}
     window.dispatchEvent(new CustomEvent('game3dRenderStatsChanged',{detail:{enabled}}));
+  };
+  const changeGpuProfile=next=>{
+    const profile=normalizeCloneGPUProfile(next);
+    setGpuProfile(profile);
+    try{localStorage.setItem(CLONE_GPU_PROFILE_KEY,profile);}catch{}
+    window.__axe3dCloneGovernor?.setProfile?.(profile);
+    window.dispatchEvent(new CustomEvent('game3dCloneGPUProfileChanged',{detail:{profile}}));
   };
   const changeVolume=value=>{
     const next=Math.max(0,Math.min(1,Number(value)||0));
@@ -418,6 +430,10 @@ export default function PauseMenu({
                   <OptionButtons label="Frame rate cap" value={graphics.fpsCap}
                     items={FPS_CAPS.map(id=>({id,text:id+' FPS'}))}
                     onPick={fpsCap=>changeGraphics({...graphics,fpsCap})}/>
+                  <OptionButtons label="GPU render profile" value={gpuProfile}
+                    items={CLONE_GPU_PROFILES.map(id=>({id,text:id==='auto'?'Auto':id==='off'?'Disable adaptive scaling':id.charAt(0).toUpperCase()+id.slice(1)}))}
+                    onPick={changeGpuProfile}/>
+                  <p className="axe3d-pause__help">Controls the clone renderer's adaptive resolution. No GPU model or VRAM total is inferred.</p>
                   <Switch label="Performance metrics (FPS / GPU / CPU)" checked={gpuStats}
                     description="Show the optional rendering diagnostics during gameplay. GPU timing is displayed only when the browser supports it."
                     onChange={()=>changeGpuStats(!gpuStats)}/>
