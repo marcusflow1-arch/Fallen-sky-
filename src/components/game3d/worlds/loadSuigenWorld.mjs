@@ -3,7 +3,7 @@ import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {SUIGEN_ASSET_PARTS,SUIGEN_WORLD_METADATA} from './WolfveilWorldVariants.mjs';
 
 const WALKABLE_NAME=/^(?:Map_Terrain_2400m|Canal_Bridge_Deck|Abyss_Stair_\d+|Abyss_Vault_Floor)$/;
-const INTERIOR_FLOOR_MATERIAL=/SUI_(?:Woven_Tatami_Mat|Golden_Oak_Timber|Mountain_Plank_Timber)/;
+const INTERIOR_FLOOR_MATERIAL=/^SUI_Woven_Tatami_Mat$/;
 export function isSuigenWalkableMesh(node){
   if(!node?.isMesh)return false;
   if(WALKABLE_NAME.test(node.name))return true;
