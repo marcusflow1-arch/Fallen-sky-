@@ -319,7 +319,7 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
       {onClose && <button type="button" data-service-close className="axe-skill-book-close"
         onClick={onClose} aria-label="Close Skills"><X size={19}/></button>}
     </header>
-    <div className="axe-skill-book-layout">
+    <div className="axe-skill-book-layout" data-weapon-slots={companion?'companion':'character'}>
       {!companion&&<SkillBookWeaponRail items={ownedWeapons}
         activeMode={activeMode.id} onChoose={chooseWeaponMode}/>}
       <div className="axe-skill-book-volume">
