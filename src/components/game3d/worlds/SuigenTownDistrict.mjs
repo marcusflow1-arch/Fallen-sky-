@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {SUIGEN_TOWN_PLOTS,SUIGEN_MERCHANT_CATALOG,suigenTownTravelPlan} from './SuigenTownPlan.mjs';
+import {createSuigenTerrainHeightSampler} from './SuigenTerrainHeight.mjs';
 
 const C=Math.PI/180;
 const unit=new THREE.BoxGeometry(1,1,1);
@@ -96,19 +97,7 @@ function localPoint(plot,x,z){
   const dx=x-plot.x,dz=z-plot.z,cos=Math.cos(plot.yaw),sin=Math.sin(plot.yaw);
   return {x:dx*cos-dz*sin,z:dx*sin+dz*cos};
 }
-function groundSampler(source){
-  const terrain=[];
-  source?.traverse?.(node=>{
-    if(node.isMesh && node.name==='Map_Terrain_2400m')terrain.push(node);
-  });
-  source?.updateMatrixWorld(true);
-  const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0);
-  return (x,z)=>{
-    ray.set(new THREE.Vector3(x,1500,z),down);
-    const hit=ray.intersectObjects(terrain,false)[0];
-    return hit?.point.y??null;
-  };
-}
+const groundSampler=createSuigenTerrainHeightSampler;
 /**
  * Level each planned building's footprint in the NEW imported terrain copy.
  * Softly grades 10m transition bands back into the original mountains.
