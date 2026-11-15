@@ -8,6 +8,7 @@
 // This is a reversible visual rig pass, not rigid-body physics. Only the
 // faction_tiger / winged_faction_3_160 is affected.
 import * as THREE from 'three';
+import {createFactionThreeEyeControls} from './factionThreeEyeControls.mjs';
 
 const norm = name => String(name||'').replace(/[^a-z0-9]/gi,'').toLowerCase();
 const clamp = (x,a,b) => Math.max(a,Math.min(b,x));
@@ -236,6 +237,9 @@ export function createFactionThreeMountRig(root,definition={}) {
   const wings=sortedBoneChain(root,'wing');
   const wingPlacement=alignFactionThreeWingBases(root);
   const helpers=isolateFactionThreeIcoHelpers(root,{tail,wings,span:wingPlacement.span||1});
+  // Keep eye Icospheres invisible and on the original head/eye armature;
+  // these are not eligible for tail/wing helper rebinding.
+  const eyes=createFactionThreeEyeControls(root,definition);
   const tailRest=tail.map(node=>node.quaternion.clone());
   const wingRest=wings.map(node=>node.quaternion.clone());
   // The head/neck may retain a subtle native idle, but do not let a bad
@@ -300,14 +304,18 @@ export function createFactionThreeMountRig(root,definition={}) {
         bone.quaternion.multiply(new THREE.Quaternion()
           .setFromAxisAngle(wingAxis,flutter)).normalize();
       });
+      eyes.update(step);
     },
     status(){return {active:!disposed,tailBones:tail.length,
       wingBones:wings.length,wingCorrections:wingPlacement.corrected,
       helpersAttached:helpers.attached,helpersHidden:helpers.hidden,
-      speed,sway};},
+      helpersProtected:helpers.protected,
+      wingOffsetsNeedAssetRepair:wingPlacement.outOfPlace,
+      eyes:eyes.status(),speed,sway};},
     dispose(){
       if(disposed)return;
       disposed=true;
+      eyes.dispose();
       helpers.restore();
       wingPlacement.restore?.();
       tail.forEach((node,i)=>node.quaternion.copy(tailRest[i]));
