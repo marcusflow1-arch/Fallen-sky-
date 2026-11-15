@@ -30,8 +30,8 @@ const board=(root,checkers)=>{
     if(!occupant)continue;
     const top=row<4?'#d1dfef':'#753847';
     const pawn=new THREE.Mesh(new THREE.CylinderGeometry(
-      checkers?.43:.32,checkers?.43:.37,checkers?.2:.58,16),MAT(top));
-    pawn.position.set(x,.25+(checkers?.10:.29),z);root.add(pawn);
+      checkers ? .43 : .32,checkers ? .43 : .37,checkers ? .2 : .58,16),MAT(top));
+    pawn.position.set(x,.25+(checkers ? .10 : .29),z);root.add(pawn);
   }
 };
 export function buildMiniGameArena(gameId){
