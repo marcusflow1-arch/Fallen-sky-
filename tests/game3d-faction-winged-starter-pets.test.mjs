@@ -85,7 +85,8 @@ test('the original and clone avatar loaders use one shared runtime retargeting p
  assert.match(defs,/previousModelUrl: asset\.previousModelUrl \|\| null/);
  assert.match(defs,/animationSource: 'baby-wolf-retarget'/);
  assert.match(animation,/retargetDogMountClips\(source\.scene,source\.animations\|\|\[\],root,definition\.id,profile\.map\)/);
- assert.match(animation,/combineNativeFactionPetClips\(embeddedClips,gait,definition\.animationRigProfile\)/);
+ assert.match(animation,/const steadyGait=sanitizeFactionThreeNativeClips\(root,gait,definition\)/);
+ assert.match(animation,/combineNativeFactionPetClips\(sanitizeFactionThreeNativeClips\(root,embeddedClips,definition\),steadyGait,definition\.animationRigProfile\)/);
  assert.match(world,/prepareMountAnimationClips\(companionModel, embeddedClips, companionDef\)/);
  assert.match(remote,/prepareMountAnimationClips\(root,embeddedClips,effectiveDefinition\)/);
  assert.match(remote,/if\(!companionDef\.previousModelUrl\)throw error/);
