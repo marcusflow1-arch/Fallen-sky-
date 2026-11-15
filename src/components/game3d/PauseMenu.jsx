@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {AnimatePresence, motion} from 'framer-motion';
 import {
   AudioLines, ChevronRight, DoorOpen, Gamepad2,
-  Keyboard, LogOut, Monitor, MousePointerClick, Play, Settings2,
+  Keyboard, LogOut, Monitor, MousePointerClick, Play, Settings2, Users, MessageSquare, BookOpen,
   ShieldAlert, UserPlus, Volume2, VolumeX, X,
 } from 'lucide-react';
 import {base44} from '@/api/base44Client';
@@ -11,10 +11,13 @@ import {getAXEControlSettings, setAXEClickToMoveEnabled, setAXEAutoTargetNearbyE
   subscribeAXEControlSettings} from './axe/player/AXEControlSettingsStore';
 import {GAME3D_PAUSE_SECTIONS,game3dPauseEscape,
   game3dPauseGraphicsDefaults,activateCloneUltraWorldGraphics} from './game3dPauseMenuModel.mjs';
+import {readGame3DCommunityHUD,saveGame3DCommunityHUD,GAME3D_COMMUNITY_HUD_EVENT}
+  from './hud/game3dCommunityHUDSettings.mjs';
+import {RENDER_STATS_STORAGE_KEY,isRenderStatsEnabled} from './debug/renderStats';
 import './PauseMenu.css';
 
 const MENU_ICONS={overview:Gamepad2,audio:AudioLines,controls:Keyboard,
-  graphics:Monitor,session:DoorOpen};
+  graphics:Monitor,community:Users,session:DoorOpen};
 const PRESET_QUALITY=['low','medium','high','ultra'];
 const FPS_CAPS=[30,60,120,144];
 const CONTROL_KEYS=[
@@ -67,6 +70,11 @@ export default function PauseMenu({
     try{return activateCloneUltraWorldGraphics(localStorage);}
     catch{return game3dPauseGraphicsDefaults(null);}
   });
+  const [community,setCommunity]=useState(()=>readGame3DCommunityHUD());
+  const [presence,setPresence]=useState({status:'unknown',count:null,max:20});
+  const [gpuStats,setGpuStats]=useState(()=>
+    isRenderStatsEnabled(typeof window==='undefined'?'':window.location.search,
+      typeof window==='undefined'?null:window.localStorage));
   const [menuMotion,setMenuMotion]=useState(()=>{
     try{return localStorage.getItem('game3d_menu_motion')!=='false';}
     catch{return true;}
@@ -90,12 +98,20 @@ export default function PauseMenu({
 
   useEffect(()=>subscribeAXEControlSettings(setControls),[]);
   useEffect(()=>{
+    const onPresence=event=>setPresence(event?.detail||{status:'unknown',count:null,max:20});
+    window.addEventListener('game3dWorldPresence',onPresence);
+    if(window.__game3dWorldPresence)setPresence(window.__game3dWorldPresence);
+    return ()=>window.removeEventListener('game3dWorldPresence',onPresence);
+  },[]);
+  useEffect(()=>{
     if(!open){setView('overview');setConfirmAction(null);setError('');return;}
     // A true MMO menu keeps the shared world running. It only blocks local
     // combat/movement input, so the hero never attacks behind the controls.
     window.__axePauseMenuOpen=true;
     window.dispatchEvent(new Event('axePauseMenuOpened'));
     if(document.pointerLockElement)document.exitPointerLock?.();
+    setCommunity(readGame3DCommunityHUD());
+    setGpuStats(isRenderStatsEnabled(window.location.search,window.localStorage));
     // Refresh the same graphics settings written from either entry or in-world.
     try{setGraphics(activateCloneUltraWorldGraphics(localStorage));}
     catch{setGraphics(game3dPauseGraphicsDefaults(null));}
@@ -158,6 +174,17 @@ export default function PauseMenu({
     catch{/* a private-browser quota error must not break the menu */}
     window.dispatchEvent(new CustomEvent('graphicsSettingsChanged',{detail:sanitized}));
   };
+  const changeCommunity=next=>{
+    const saved=saveGame3DCommunityHUD(next);
+    setCommunity(saved);
+    window.dispatchEvent(new CustomEvent(GAME3D_COMMUNITY_HUD_EVENT,{detail:saved}));
+  };
+  const changeGpuStats=next=>{
+    const enabled=!!next;
+    setGpuStats(enabled);
+    try{localStorage.setItem(RENDER_STATS_STORAGE_KEY,enabled?'1':'0');}catch{}
+    window.dispatchEvent(new CustomEvent('game3dRenderStatsChanged',{detail:{enabled}}));
+  };
   const changeVolume=value=>{
     const next=Math.max(0,Math.min(1,Number(value)||0));
     if(next>0)lastVolumeRef.current=next;
@@ -187,6 +214,7 @@ export default function PauseMenu({
     audio:['Audio','Adjust your game theme'],
     controls:['Controls','Choose how you move through the world'],
     graphics:['Graphics & Display','Tune the world to your device'],
+    community:['HUD & Community','Choose which social elements appear while you play'], 
     session:['Session','Manage your character and account'],
   }[view]||['Journey Menu','Your adventure is still running'];
 
@@ -279,6 +307,9 @@ export default function PauseMenu({
                   <button type="button" onClick={()=>selectView('controls')}>
                     <Keyboard size={22}/><strong>Input</strong><span>WASD and mouse</span>
                   </button>
+                  <button type="button" onClick={()=>selectView('community')}>
+                    <Users size={22}/><strong>Community</strong><span>Chat · Echo · Players</span>
+                  </button>
                 </div>
               </>}
               {view==='audio'&&<div className="axe3d-pause__surface">
@@ -314,6 +345,48 @@ export default function PauseMenu({
                   </div>
                 </div>
               </>}
+              {view==='community'&&<div className="axe3d-pause__settings-grid" data-testid="game3d-community-settings">
+                <div className="axe3d-pause__surface">
+                  <div className="axe3d-pause__surface-heading">
+                    <Users size={22}/><div><strong>World & Community</strong>
+                      <p>Keep the game view clear. Multiplayer stays connected when a HUD item is hidden.</p>
+                    </div>
+                  </div>
+                  <Switch label="World and party chat" checked={community.chat}
+                    description="Show the compact chat dock. Enter still opens chat when the dock is hidden."
+                    onChange={()=>changeCommunity({...community,chat:!community.chat})}/>
+                  <Switch label="Echo Chronicle book" checked={community.echo}
+                    description="Keep the small book launcher next to the portrait. Incoming conversations remain accessible."
+                    onChange={()=>changeCommunity({...community,echo:!community.echo})}/>
+                  <Switch label="Players online HUD badge" checked={community.online}
+                    description="Show an optional small online count during gameplay. The live count remains here either way."
+                    onChange={()=>changeCommunity({...community,online:!community.online})}/>
+                  <OptionButtons label="Community UI size" value={community.scale}
+                    items={[{id:.75,text:'75%'},{id:1,text:'100%'},{id:1.25,text:'125%'}]}
+                    onPick={scale=>changeCommunity({...community,scale})}/>
+                </div>
+                <div className="axe3d-pause__surface">
+                  <div className="axe3d-pause__surface-heading">
+                    <MessageSquare size={22}/><div><strong>Online & Conversations</strong>
+                      <p>Native community options without another floating settings box.</p>
+                    </div>
+                  </div>
+                  <p className="axe3d-pause__help" role="status">
+                    World server: {entry?'available after entering the world':
+                      (presence.status==='unknown'?'waiting for current presence':
+                        (presence.status+' · '+(Number.isFinite(presence.count)?presence.count:'—')+
+                        '/'+(presence.max||20)+' players'))}.
+                  </p>
+                  {!entry&&<div className="axe3d-pause__shortcut-grid">
+                    <button type="button" onClick={()=>{
+                      onClose();window.dispatchEvent(new Event('game3dOpenWorldChat'));
+                    }}><MessageSquare size={20}/><strong>Open Chat</strong><span>World / Party</span></button>
+                    <button type="button" onClick={()=>{
+                      onClose();window.dispatchEvent(new Event('game3dOpenEchoChronicle'));
+                    }}><BookOpen size={20}/><strong>Open Echo</strong><span>Memory book</span></button>
+                  </div>}
+                </div>
+              </div>}
               {view==='graphics'&&<div className="axe3d-pause__settings-grid">
                 <div className="axe3d-pause__surface">
                   <OptionButtons label="Visual style" value={graphics.artStyle}
@@ -345,6 +418,9 @@ export default function PauseMenu({
                   <OptionButtons label="Frame rate cap" value={graphics.fpsCap}
                     items={FPS_CAPS.map(id=>({id,text:id+' FPS'}))}
                     onPick={fpsCap=>changeGraphics({...graphics,fpsCap})}/>
+                  <Switch label="Performance metrics (FPS / GPU / CPU)" checked={gpuStats}
+                    description="Show the optional rendering diagnostics during gameplay. GPU timing is displayed only when the browser supports it."
+                    onChange={()=>changeGpuStats(!gpuStats)}/>
                   <p className="axe3d-pause__help">Graphics changes are saved and applied to the existing renderer.</p>
                 </div>
               </div>}
