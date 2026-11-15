@@ -261,7 +261,7 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
       next.passiveSets[index].forEach((id,i) => equipPassive(i,id));
     }
     setSelected(null);
-    setStatus('Preset '+(index+1)+' selected.');
+    setStatus(companion ? ['Support','Combat','Mobility'][index]+' companion skills selected.' : 'Weapon skill bar selected.');
   };
   const savePreset = side => {
     if (companion) refreshBanks({ ...banks, companionSets:banks.companionSets.map((set,i) =>
@@ -269,7 +269,7 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
     else if (side === 'right') { feedback(saveSkillPreset()); setPresetRevision(x=>x+1); }
     else refreshBanks({ ...banks, passiveSets:banks.passiveSets.map((set,i) =>
       i === banks.passiveIndex ? getLoadout().passivePanel.slice() : set) });
-    setStatus('Current skill set saved to this preset.');
+    setStatus(companion?'Companion ability set saved.':'Current weapon skill bar saved.');
   };
   const chooseWeaponMode = modeId=>{
     const mode=SKILL_BOOK_WEAPON_MODES.find(entry=>entry.id===modeId);
