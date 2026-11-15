@@ -1,0 +1,58 @@
+name: Game 3D Clone Combat Quest 95.1 Native Verification
+on:
+  pull_request:
+    paths:
+      # Include authority, authentication, quest, and persistence modules too.
+      - 'server/game3d/**'
+      - 'server/game3d/privateCombatQuestScheduler844.mjs'
+      - 'server/game3d/tests/combat*.test.mjs'
+      - 'server/game3d/tools/verifyCombatQuest851.mjs'
+      - '.github/workflows/game3d-combat-950.yml'
+  push:
+    branches: [main]
+    paths:
+      # Include authority, authentication, quest, and persistence modules too.
+      - 'server/game3d/**'
+      - 'server/game3d/privateCombatQuestScheduler844.mjs'
+      - 'server/game3d/tests/combat*.test.mjs'
+      - 'server/game3d/tools/verifyCombatQuest851.mjs'
+      - '.github/workflows/game3d-combat-950.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-authority-node22:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse original Combat Quest code and tests
+        run: |
+          node --check server/game3d/privateCombatQuestScheduler844.mjs
+          node --check server/game3d/tests/combat844.scheduler.test.mjs
+          node --check server/game3d/tests/combat871.monotonic-clock.test.mjs
+          node --check server/game3d/tests/combat872.lease-snapshot.test.mjs
+          node --check server/game3d/tests/combat873.post-input-lease.test.mjs
+      - name: Original authority, shutdown, lease and staged credit suites
+        run: |
+          node --test server/game3d/tests/combat844.scheduler.test.mjs
+          node --test server/game3d/tests/combat869.scheduler-shutdown.test.mjs
+          node --test server/game3d/tests/combat870.combined-shutdown.test.mjs
+          node --test server/game3d/tests/combat871.monotonic-clock.test.mjs
+          node --test server/game3d/tests/combat872.lease-snapshot.test.mjs
+          node --test server/game3d/tests/combat873.post-input-lease.test.mjs
+      - name: Original offline suite manifest contract
+        run: |
+          node --test server/game3d/tests/combat851.offline.test.mjs
+      - name: Check 95.0 release gate cannot silently skip full original suite
+        run: |
+          node --test server/game3d/tests/combat950.ci-release-gate.test.mjs
+      - name: Clone 95.1 fail-closed staging guard
+        run: |
+          node --test server/game3d/tests/combat951.clone-verification.test.mjs
+      - name: Execute all original 85.1 offline source regressions
+        run: |
+          node server/game3d/tools/verifyCombatQuest851.mjs
