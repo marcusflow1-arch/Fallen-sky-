@@ -53,6 +53,9 @@ jobs:
       - name: Clone 95.1 fail-closed staging guard
         run: |
           node --test server/game3d/tests/combat951.clone-verification.test.mjs
+      - name: Clone 95.2 native verifier repository-scope and pinned-evidence regressions
+        run: |
+          node --test server/game3d/tests/combat952.clone-native-verifier.test.mjs
       - name: Execute all original 85.1 offline source regressions
         run: |
           node server/game3d/tools/verifyCombatQuest851.mjs
