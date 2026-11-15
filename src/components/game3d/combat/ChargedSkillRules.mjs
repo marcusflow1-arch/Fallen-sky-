@@ -1,7 +1,8 @@
 // Combat Foundation 2.5 — deliberately small combat vocabulary.
 // Max mastery unlocks an OPTIONAL one-second hold for singles and 3-hit skills.
 // The bonus is a real damage multiplier (not a guaranteed critical/lethal hit).
-export const CHARGE_HOLD_MS = 1000;
+export const CHARGE_HOLD_MS = 1200; // default; individual skills can override
+export const CHARGE_PERCENT_STEP = 10;
 export const CHARGE_DAMAGE_MULTIPLIER = 1.20;
 export const FINISHER_CHAIN_LEAD_MS = 340;
 export const FINISHER_CHAIN_GRACE_MS = 180;
@@ -32,17 +33,32 @@ export function isMaxMasteryChargeUnlocked(skill, level) {
     Number.isFinite(Number(level)) &&
     Number(level) >= Math.max(1, Number(skill.max_level) || 30);
 }
+// Charge progress advances in explicit 10% stages; holding longer than
+// the configured duration maintains 100% with no overcharge stacking.
+export function getSkillChargeStatus(skill, heldMs=0) {
+  const explicit=Number(skill?.charge_duration_ms ?? skill?.chargeTimeMs ??
+    skill?.charge_time_ms);
+  const requiredMs=Number.isFinite(explicit)&&explicit>=200&&explicit<=10000
+    ?explicit:CHARGE_HOLD_MS;
+  const ms=Math.max(0,Number.isFinite(Number(heldMs))?Number(heldMs):0);
+  const raw=Math.min(1,ms/requiredMs);
+  const percent=Math.min(100,Math.floor((raw+1e-9)*100/CHARGE_PERCENT_STEP)*CHARGE_PERCENT_STEP);
+  return {requiredMs,heldMs:ms,percent,progress:percent/100,full:percent===100};
+}
+
 export function qualifyChargedCast(skill, masteryLevel, heldMs, specializationId = 'standard') {
-  const charged = isMaxMasteryChargeUnlocked(skill, masteryLevel) &&
-    Number.isFinite(Number(heldMs)) && Number(heldMs) >= CHARGE_HOLD_MS;
-  const family = skillCombatFamily(skill);
-  const spec = getChargeSpecialization(specializationId);
+  const unlocked=isMaxMasteryChargeUnlocked(skill,masteryLevel);
+  const charge=getSkillChargeStatus(skill,heldMs);
+  const charged=unlocked&&charge.percent>=CHARGE_PERCENT_STEP;
+  const family=skillCombatFamily(skill);
+  const spec=getChargeSpecialization(specializationId);
+  const scale=charged?charge.progress:0;
   return {
-    charged,
-    family,
-    powerMultiplier: charged ? spec.powerMultiplier : 1,
-    critBonusPct: charged ? spec.critBonusPct : 0,
-    fatalBonusPct: charged ? spec.fatalBonusPct : 0,
+    charged, family, chargePercent:charged?charge.percent:0,
+    chargeDurationMs:charge.requiredMs,
+    powerMultiplier: 1+(spec.powerMultiplier-1)*scale,
+    critBonusPct: spec.critBonusPct*scale,
+    fatalBonusPct: spec.fatalBonusPct*scale,
     specializationId: CHARGE_SPECIALIZATIONS[specializationId] ? specializationId : 'standard',
   };
 }
