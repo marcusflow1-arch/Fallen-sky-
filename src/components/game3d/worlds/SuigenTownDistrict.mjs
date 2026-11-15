@@ -493,7 +493,28 @@ export function createSuigenTownDistrict({worldRoot,terrainRoot}={}){
         &&Math.abs(q.x)<w+.14;
       const front=q.z>d-.24-radius&&q.z<d+.25+radius&&Math.abs(q.x)<w+.14;
       const doorway=Math.abs(q.x)<1.18-radius*.2&&plot.doorOpen;
-      if(atSide||atBack||(front&&!doorway)){
+      // The kitchen island, refrigerator, dining table, merchant counter,
+      // upstairs beds and lounge furniture are real obstructions. Only
+      // walls/fixtures block: the doorway, staircase and corridors stay free.
+      const localHeight=position.y-plot.baseY;
+      const inside=Math.abs(q.x)<w-.25&&Math.abs(q.z)<d-.25;
+      const furniture=localHeight<3.35
+        ? [
+            [-w+3.7,-d+3.45,2.5,.7], // full fitted kitchen counter
+            [-w+1.8,-d+1.99,.61,.58], // refrigerator
+            [-w+6.1,-.2,1.78,1.03], // centre island
+            [2.8,-.35,1.75,1.03], // dining
+            [-w+3.2,d-4.15,1.95,.81], // lounge sofa
+            ...(plot.merchantId?[[0,-d+2.7,2.2,.66]]:[]), // trader's counter
+          ]
+        : plot.stories>1?[
+            [-w+4.3,d-4.65,1.85,1.25],
+            [w-4.3,d-4.65,1.85,1.25],
+            [0,-d+.20,1.95,.45], // upstairs display shelving
+          ]:[];
+      const hittingFurniture=inside&&furniture.some(([x,z,hx,hz])=>
+        Math.abs(q.x-x)<hx+radius*.55&&Math.abs(q.z-z)<hz+radius*.55);
+      if(atSide||atBack||(front&&!doorway)||hittingFurniture){
         position.x=previous.x;position.z=previous.z;return true;
       }
     }
