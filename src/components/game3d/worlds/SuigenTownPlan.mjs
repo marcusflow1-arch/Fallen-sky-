@@ -41,7 +41,7 @@ export const SUIGEN_TOWN_PLOTS=Object.freeze(ROWS.flatMap((z,row)=>COLUMNS.map((
     width,depth,stories:merchant?.kind==='stables'?1:((seed%7===0)?1:2),
     seed,entry:'front',enterable:true,
   });
-}));
+})));
 export const SUIGEN_TOWN_REGIONS=Object.freeze([
   {id:'market-west',name:'Western Merchant Arc',bounds:[-294,-116,-116,450]},
   {id:'market-east',name:'Eastern Merchant Arc',bounds:[116,294,-116,450]},
