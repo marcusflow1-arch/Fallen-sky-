@@ -35,6 +35,18 @@ export function isMaxMasteryChargeUnlocked(skill, level) {
 }
 // Charge progress advances in explicit 10% stages; holding longer than
 // the configured duration maintains 100% with no overcharge stacking.
+// Authored charged abilities may opt in below max mastery by setting
+// chargeable=true or a charge-duration field. Existing passive/utility/AoE
+// channels do NOT suddenly become hold-to-cast or lose instant activation.
+export function isChargeableCombatSkill(skill, masteryLevel) {
+  if(isMaxMasteryChargeUnlocked(skill,masteryLevel))return true;
+  const family=skillCombatFamily(skill);
+  if(!family||family==='aoe')return false;
+  const ms=Number(skill?.charge_duration_ms ?? skill?.charge_time_ms ?? skill?.chargeTimeMs);
+  return skill?.chargeable === true ||
+    (Number.isFinite(ms) && ms >= 200 && ms <= 10000);
+}
+
 export function getSkillChargeStatus(skill, heldMs=0) {
   const explicit=Number(skill?.charge_duration_ms ?? skill?.chargeTimeMs ??
     skill?.charge_time_ms);
@@ -47,7 +59,7 @@ export function getSkillChargeStatus(skill, heldMs=0) {
 }
 
 export function qualifyChargedCast(skill, masteryLevel, heldMs, specializationId = 'standard') {
-  const unlocked=isMaxMasteryChargeUnlocked(skill,masteryLevel);
+  const unlocked=isChargeableCombatSkill(skill,masteryLevel);
   const charge=getSkillChargeStatus(skill,heldMs);
   const charged=unlocked&&charge.percent>=CHARGE_PERCENT_STEP;
   const family=skillCombatFamily(skill);
