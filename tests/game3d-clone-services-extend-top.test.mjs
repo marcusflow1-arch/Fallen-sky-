@@ -9,10 +9,10 @@ const file=path=>readFileSync(new URL('../src/components/game3d/axe/services/'+p
 const css=file('AXEServiceWorkspace.css');
 const component=file('AXEServiceWorkspace.jsx');
 
-test('every owner-visible Services destination uses the same top-extended workspace',()=>{
+test('every current Services destination uses the shared workspace; Appearance is merged into Character',()=>{
   assert.deepEqual(AXE_SERVICE_GROUPS.map(s=>s.id),[
     'blacksmith','character','skills','quest_logbook',
-    'appearance','companion','spiritual',
+    'companion','spiritual',
   ]);
   assert.match(component,/getAXEServiceGroup\(mode\.groupId\)/);
   assert.match(component,/data-service-extent="viewport-top"/);
