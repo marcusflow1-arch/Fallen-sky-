@@ -124,107 +124,103 @@ function isMiniUnweightedIco(node,span) {
 }
 
 /**
- * Repair a genuine paired wing-base bone only when the source joint sits
- * away from the front-shoulder/neck area. The desired point is inferred from
- * this GLB's real shoulder + chest + neck bones, not a guessed rider joint.
- *
- * Preserve bone parents, existing skeleton/weights, and authored rotations.
- * Translation is written in the wing's original parent-local bone frame,
- * once before its mixer starts and before the rider is attached.
+ * Report wing attachment offsets without changing a skinned bone's bind pose.
+ * Moving a skin joint in isolation corrupts mesh deformation because GLB
+ * inverseBindMatrices still represent its original rest position. If the
+ * uploaded asset has a misplaced wing attachment, it must be repaired in its
+ * armature/skin and re-exported, not translated every time Play loads.
  */
 export function alignFactionThreeWingBases(root) {
-  if(!root)return {corrected:0,span:0,anchors:[]};
+  if(!root) return {corrected:0,span:0,anchors:[],outOfPlace:0,restore(){}};
   root.updateWorldMatrix(true,true);
   const chest=findBone(root,'chest')||findBone(root,'spine');
   const neck=findBone(root,'neck');
-  const left=findBone(root,'front.L.upper');
-  const right=findBone(root,'front.R.upper');
+  const left=findBone(root,'front.L.upper'),right=findBone(root,'front.R.upper');
   const wings=sortedBoneChain(root,'wing');
   if(!chest||!neck||!left||!right||wings.length<2)
-    return {corrected:0,span:0,anchors:[]};
-  const shoulderSpan=world(left).distanceTo(world(right));
-  if(!(shoulderSpan>1e-5))return {corrected:0,span:0,anchors:[]};
-  const anchors=[],restores=[];
-  for(const wing of wings){
-    const side=wingSide(wing.name);
+    return {corrected:0,span:0,anchors:[],outOfPlace:0,restore(){}};
+  const span=world(left).distanceTo(world(right));
+  if(!(span>1e-5)) return {corrected:0,span:0,anchors:[],outOfPlace:0,restore(){}};
+  const anchors=[];
+  let outOfPlace=0;
+  for(const bone of wings) {
+    const side=wingSide(bone.name);
     const shoulder=side==='L'?left:side==='R'?right:null;
-    if(!shoulder||!wing.parent)continue;
-    // Back/upper shoulder close to the base of the neck; both sides use
-    // the same anatomical construction and retain the source left/right.
+    if(!shoulder) continue;
     const target=world(shoulder).lerp(world(chest),.28)
       .lerp(world(neck),.16);
-    target.y+=clamp(shoulderSpan*.14,.025,.30);
-    const current=world(wing);
-    const distance=current.distanceTo(target);
-    // If the original GLB anchor is already anatomically sensible, do not
-    // rewrite the bind pose. Otherwise cap the one-time correction.
-    // One-time load-time repair: a widely displaced wing must actually land
-    // at the anatomical shoulder, not remain half-way across the back.
-    // Bound extreme malformed assets to three shoulder-widths of correction.
-    const maxOffset=clamp(shoulderSpan*3,.6,3);
-    const tolerance=Math.max(.05,shoulderSpan*.22);
-    if(distance>tolerance){
-      const before=wing.position.clone();
-      const next=current.clone().lerp(target,Math.min(1,maxOffset/distance));
-      wing.position.copy(wing.parent.worldToLocal(next));
-      wing.updateWorldMatrix(false,true);
-      restores.push(()=>wing.position.copy(before));
-    }
-    anchors.push({bone:wing,side,target});
+    target.y+=clamp(span*.14,.025,.30);
+    if(world(bone).distanceTo(target)>Math.max(.05,span*.22)) outOfPlace++;
+    anchors.push({bone,side,target}); // diagnostics only; bone stays in authored bind pose
   }
-  root.updateWorldMatrix(true,true);
-  return {corrected:restores.length,span:shoulderSpan,anchors,
-    restore:()=>{for(const fn of restores)fn();root.updateWorldMatrix(true,true);}};
+  return {corrected:0,span,anchors,outOfPlace,restore(){}};
 }
 
+const isEyeRelated = name => /eye|pupil|iris|eyelid|brow|blink/i.test(String(name||''));
+const boneAncestor = node => {
+  let parent=node?.parent;
+  while(parent){ if(parent.isBone) return parent; parent=parent.parent; }
+  return null;
+};
+
 /**
- * Locate tiny, UNSKINNED Icosphere helpers only. Preserve visible skin mesh
- * sections (never detach skinned wings/tail). Reparent helpers in the mount
- * frame to their nearest authentic tail/wing bone; hide stray tiny markers
- * which are not close to either appendage. Do not create colliders.
+ * Icosphere helpers are UNSKINNED. Giving their mesh fake skin weights cannot
+ * fix a skinned tail: only a GLB armature re-export can change vertex weights.
+ * We can rigidly attach an approved helper to a matching tail/wing bone,
+ * keeping its world transform. Unknown and eye-adjacent Icospheres must never
+ * get assigned to the nearest wing by accident.
  */
 export function isolateFactionThreeIcoHelpers(root,{tail=[],wings=[],span=1}={}) {
+  if(!root) return {attached:0,hidden:0,protected:0,restore(){}};
   root.updateWorldMatrix(true,true);
-  const anchors=[...tail,...wings];
+  const head=findBone(root,'head');
   const restores=[];
-  let attached=0,hidden=0;
   const candidates=[];
-  root.traverse(node=>{
-    if(isMiniUnweightedIco(node,span))candidates.push(node);
-  });
+  root.traverse(node=>{if(isMiniUnweightedIco(node,span))candidates.push(node);});
+  let attached=0,hidden=0,protectedCount=0;
+  const headExclusion=Math.max(.17,span*.42);
   for(const node of candidates){
-    if(!node.parent)continue;
-    const initial={
-      parent:node.parent,position:node.position.clone(),
-      quaternion:node.quaternion.clone(),scale:node.scale.clone(),
-      visible:node.visible,raycast:node.raycast,
-    };
-    const pos=world(node);
+    if(!node.parent || node.userData?.factionThreeEyeControl)continue;
+    const named=String(node.name||'').toLowerCase();
+    const parentBone=boneAncestor(node);
+    // The original eyes and their controls are never replaced, hidden,
+    // skinned, reparented to wings, or assigned appendage motion.
+    if(isEyeRelated(named)||isEyeRelated(parentBone?.name)||
+        (head && world(node).distanceTo(world(head))<headExclusion)){
+      protectedCount++;
+      continue;
+    }
+    // No blind nearest-bone attachment. Unnamed tiny Icospheres are only
+    // eligible if they already sit directly beside a genuine appendage bone.
+    const family=/tail/i.test(named)?tail:/wing/i.test(named)?wings:[...tail,...wings];
     let closest=null,dist=Infinity;
-    for(const bone of anchors){
-      const d=world(bone).distanceTo(pos);
+    for(const bone of family){
+      const d=world(node).distanceTo(world(bone));
       if(d<dist){dist=d;closest=bone;}
     }
-    if(closest&&dist<Math.max(.20,span*.9)&&closest!==node.parent){
-      closest.attach(node); // preserves visual world position during reparent
-      attached++;
-    } else if(!closest||dist>=Math.max(.20,span*.9)){
-      node.visible=false;
-      hidden++;
-    }
+    const threshold=Math.max(.075,span*(/tail|wing/i.test(named)?.45:.17));
+    if(!closest||dist>threshold){protectedCount++;continue;}
+    if(parentBone===closest || node.parent===closest)continue; // already armature-owned
+    const initial={parent:node.parent,position:node.position.clone(),
+      quaternion:node.quaternion.clone(),scale:node.scale.clone(),
+      visible:node.visible,raycast:node.raycast};
+    closest.attach(node); // rigid joint link, world transform preserved
     node.userData.factionThreeSecondaryHelper=true;
     node.raycast=()=>{};
+    attached++;
     restores.push(()=>{
       initial.parent.attach(node);
       node.position.copy(initial.position);
       node.quaternion.copy(initial.quaternion);
       node.scale.copy(initial.scale);
-      node.visible=initial.visible;
-      node.raycast=initial.raycast;
+      node.visible=initial.visible;node.raycast=initial.raycast;
       delete node.userData.factionThreeSecondaryHelper;
     });
   }
-  return {attached,hidden,restore:()=>restores.forEach(fn=>fn())};
+  return {attached,hidden,protected:protectedCount,restore:()=>{
+    for(const restore of restores.reverse())restore();
+    root.updateWorldMatrix(true,true);
+  }};
 }
 
 /**
