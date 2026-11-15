@@ -56,7 +56,7 @@ function GearIcon({item}) {
   if(item?.slot==='costume'||item?.slot?.startsWith('vanity_'))return <Shirt size={24}/>;
   return <Shield size={24}/>;
 }
-export default function AXECharacterWorkspace() {
+export default function AXECharacterWorkspace({ embedded=false } = {}) {
   const [hud,setHud]=useState(getPlayerHUD);
   const [activeCharacter,setActiveCharacter]=useState(getActiveCharacter);
   const [equipment,setEquipment]=useState(getAllAXEEquipmentItems);
@@ -146,11 +146,12 @@ export default function AXECharacterWorkspace() {
       <small>{label}</small><span className="axe-app-viewer-item-name">{gear?.name||'—'}</span>
     </div>;
   };
-  return <div className="axe-app-root axe-char-root" aria-label="Character attributes and equipment">
-    <div className="axe-app-brand"><span className="axe-app-banner" aria-hidden="true">✧</span>
+  return <div className={'axe-app-root axe-char-root'+(embedded?' axe-char-root--embedded':'')}
+    aria-label="Character attributes and equipment">
+    {!embedded&&<div className="axe-app-brand"><span className="axe-app-banner" aria-hidden="true">✧</span>
       <div><h2>Character</h2><p>Attributes, equipped gear, and live combat statistics</p></div>
       <div className="axe-char-level">Level {display(hud.level)} <span>{display(points)} unspent points</span></div>
-    </div>
+    </div>}
     <div className="axe-char-layout">
       <section className="axe-app-model-stage axe-char-model-stage" aria-label="Player 3D viewer with all supported equipment slots">
         <div className="axe-app-model-glow" aria-hidden="true"/>
