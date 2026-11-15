@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { isBowHeadshotPoint } from './ArcheryChargeRules.mjs';
 
 // An arrow is a straight ray from the on-screen centre point. Actor hitboxes
 // are separate from thin animated mesh triangles and decorative effects.
@@ -163,7 +164,11 @@ export function selectCameraBowTarget({
     if (!Number.isFinite(distance) || distance > maxRange || distance < 0.2) continue;
     // Neither a camera ray through a wall nor a muzzle behind a rock can
     // award an AI hit. The muzzle converges on this exact reticle hit point.
-    candidates.push({ target, distance, locked, point, rayHit: !!intersection, rayDistance });
+    candidates.push({ target, distance, locked, point, rayHit: !!intersection, rayDistance,
+      // The cached/temporary body bounds object is reused for other actors
+      // below: resolve head eligibility NOW for this specific target.
+      headshot: isBowHeadshotPoint(point, box, !!intersection),
+    });
   }
 
   candidates.sort((a, b) => a.rayDistance - b.rayDistance || Number(b.rayHit) - Number(a.rayHit));
