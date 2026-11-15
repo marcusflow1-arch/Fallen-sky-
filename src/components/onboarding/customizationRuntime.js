@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { SHAPE_CONTROLS, RIG_IDS } from '@/components/onboarding/avatarCustomization';
+import { SHAPE_CONTROLS, RIG_IDS, ARMOR_SLOTS } from '@/components/onboarding/avatarCustomization';
 import { applyRegionAppearance, bindBodyRegions, regionCapabilities } from './bodyRegions.js';
 import { clearFusedHairFromEyes } from './creatorModelQuality';
 import { bindFusedMakeup } from './creatorMakeup.js';
@@ -189,11 +189,17 @@ export class AvatarCustomizationRuntime {
   const key=JSON.stringify(assets.map(a=>[a.id,a.file_url,a.binding,a.hide_meshes,a.target_meshes,a.target_materials,a.attach_bone,a.tint_materials]));
   if(key===this.key){this.apply();return;}
   this.key=key;const revision=++this.revision;this.onState({loading:true,error:''});
-  const created=[];
+  const created=[],armorErrors=[];
   const retiringNodes=new Set();this.layers.forEach(item=>item.root.traverse(n=>retiringNodes.add(n)));
   try {
    for(const asset of assets) {
-    if(asset.gender!==this.gender||asset.rig_id!==this.rigId)throw Error('This layer is not compatible with the selected body.');
+    if(asset.gender!==this.gender||asset.rig_id!==this.rigId){
+      if(ARMOR_SLOTS.includes(asset.slot)){
+        armorErrors.push(asset.slot+': not fitted for this character body');
+        continue;
+      }
+      throw Error('This layer is not compatible with the selected body.');
+    }
     if(asset.binding==='surface') {
      const texture=await new THREE.TextureLoader().loadAsync(asset.file_url);
      texture.flipY=false;texture.colorSpace=THREE.SRGBColorSpace;
@@ -218,30 +224,47 @@ export class AvatarCustomizationRuntime {
       group.userData.surfaceMeshes ||= [];group.userData.surfaceMeshes.push(overlay);
      });
     }else {
-     const gltf=await new GLTFLoader().loadAsync(asset.file_url);created.push({asset,root:gltf.scene});
-     // Bind after every replacement finishes loading: do not overlap old and
-     // new hair on the same frame while a network request is pending.
+     // Missing one piece should not hide all the other equipped armor.
+     // Don't silently keep an old piece in the same slot if this load fails.
+     try{
+      const gltf=await new GLTFLoader().loadAsync(asset.file_url);
+      created.push({asset,root:gltf.scene});
+     }catch(error){
+      if(!ARMOR_SLOTS.includes(asset.slot))throw error;
+      armorErrors.push(asset.slot+': '+(error?.message||'3D model failed to load'));
+     }
     }
     if(this.disposed||revision!==this.revision){created.forEach(x=>this.disposeItem(x));return;}
    }
-   for(const {asset,root} of created) {
+   if(this.disposed||revision!==this.revision){
+     created.forEach(x=>this.disposeItem(x));return;
+   }
+   const ready=[];
+   for(const item of created) {
+    const {asset,root}=item;
     if(asset.binding!=='surface') {
-      bindCustomizationLayer(this.root,root,asset);
-      // Keep main's eye-clearance pass, but only after successful loading so
-      // default and replacement hair never coexist while awaiting GLTF.
-      if(asset.slot==='hair'&&asset.builtin)
-        clearFusedHairFromEyes(this.root,root);
+      try{
+       bindCustomizationLayer(this.root,root,asset);
+       if(asset.slot==='hair'&&asset.builtin)
+         clearFusedHairFromEyes(this.root,root);
+      }catch(error){
+       if(!ARMOR_SLOTS.includes(asset.slot))throw error;
+       armorErrors.push(asset.slot+': '+(error?.message||'model rig mismatch'));
+       this.disposeItem(item);
+       continue;
+      }
     }
+    ready.push(item);
    }
    // All swaps happen synchronously after load. A failed load leaves the old
    // hair visible; a successful swap never renders the original and the
    // selected hairstyle on top of each other.
    this.restoreHidden();this.layers.forEach(x=>this.disposeItem(x));
-   this.layers=new Map(created.map(x=>[x.asset.slot,x]));
-   for(const {root} of created)
+   this.layers=new Map(ready.map(x=>[x.asset.slot,x]));
+   for(const {root} of ready)
     for(const {base,overlay} of root.userData.surfacePlacements||[])
      base.parent?.add(overlay);
-   for(const {asset} of created)for(const name of asset.hide_meshes||[]) {
+   for(const {asset} of ready)for(const name of asset.hide_meshes||[]) {
     this.root.traverse(n=>{
      if(isCreatorDefaultHair(n,[name]) ||
         (n.isMesh&&!n.userData.creatorLayer&&!n.userData.customizationSurface&&n.name===name)){
@@ -251,7 +274,11 @@ export class AvatarCustomizationRuntime {
     });
    }
    applyBodyMasks(this.root,[...this.layers.values()].filter(x=>x.asset.rig_id===this.rigId).map(x=>layerBodyMask(x.root)).filter(Boolean));
-   this.apply();this.onChange(inspectCustomization(this.root));this.onState({loading:false,error:''});
+   this.apply();this.onChange(inspectCustomization(this.root));
+   // Report asset/rig errors to both viewers instead of displaying a naked
+   // character with no explanation. Valid pieces stay applied.
+   const error=armorErrors.join('; ');
+   this.onState({loading:false,error,failedArmorSlots:armorErrors.length});
   }catch(error) {
    created.forEach(x=>this.disposeItem(x));
    if(!this.disposed&&revision===this.revision){this.key='';this.onState({loading:false,error:error.message||'The selected layer could not load.'});}
