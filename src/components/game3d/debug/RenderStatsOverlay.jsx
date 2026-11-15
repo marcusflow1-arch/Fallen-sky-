@@ -20,10 +20,15 @@ function pushCapped(list, value) {
 }
 
 export default function RenderStatsOverlay() {
-  const [enabled] = useState(() => (typeof window === 'undefined'
+  const [enabled,setEnabled] = useState(() => (typeof window === 'undefined'
     ? false
     : isRenderStatsEnabled(window.location.search, window.localStorage)));
   const [view, setView] = useState(null);
+  useEffect(()=>{
+    const onPreference=event=>setEnabled(!!event?.detail?.enabled);
+    window.addEventListener('game3dRenderStatsChanged',onPreference);
+    return ()=>window.removeEventListener('game3dRenderStatsChanged',onPreference);
+  },[]);
 
   useEffect(() => {
     if (!enabled) return undefined;
