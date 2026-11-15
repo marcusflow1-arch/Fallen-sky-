@@ -59,7 +59,10 @@ function ItemSymbol({ item }) {
   return item?.kind === 'costume' ? <Shirt size={34}/> : <Gem size={34}/>;
 }
 
-export default function AXEAppearanceWorkspace({ serviceId = 'character', stationMessage = '', initialTab = null, onClose }) {
+export default function AXEAppearanceWorkspace({
+  serviceId = 'character', stationMessage = '', initialTab = null, onClose,
+  onActiveTabChange, focusCharacterRequest = 0,
+}) {
   const vanity = useLive(subscribeAXEVanity, getAXEVanityState);
   const costumes = useLive(subscribeAXECostumes, getAXECostumeState);
   const capes = useLive(subscribeAXECapes, getAXECapeState);
@@ -70,6 +73,12 @@ export default function AXEAppearanceWorkspace({ serviceId = 'character', statio
   useEffect(()=>subscribeAXEAura(setAuraRecords),[]);
   useEffect(()=>subscribeAppearanceAuraSource(setAuraSource),[]);
   const [tab, setTab] = useState(() => initialTab === 'Equipment' ? 'Equipment' : serviceId === 'equipment_aura' ? 'Aura' : serviceId === 'vanity' ? 'Vanity' : serviceId === 'costume' ? 'Vanity' : 'Character');
+  // Report the actual visible Character/Equipment/Vanity/Aura subpage so C
+  // returns from a different subpage before toggling the menu closed.
+  useEffect(() => { onActiveTabChange?.(tab); }, [tab, onActiveTabChange]);
+  useEffect(() => {
+    if (focusCharacterRequest > 0) setTab('Character');
+  }, [focusCharacterRequest]);
   const [selected, setSelected] = useState(null); // {kind: 'vanity'|'costume', id}
   const [detail, setDetail] = useState('');
   const [notice, setNotice] = useState('');
