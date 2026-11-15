@@ -64,7 +64,7 @@ import { getLoadout, cycleSkillPreset, startCooldown as startSkillCooldown, tick
 import { castSkill } from './skills/skillExecutor';
 import { getSkillById } from './skills/skillRegistry';
 import { getSkillMasteryLevel } from './skills/skillMasteryStore';
-import { isMaxMasteryChargeUnlocked, canAcceptFinisherChain, skillCombatFamily } from './combat/ChargedSkillRules';
+import { isMaxMasteryChargeUnlocked, getSkillChargeStatus, canAcceptFinisherChain, skillCombatFamily } from './combat/ChargedSkillRules';
 import { createKillFlowCounter, isKillFlowCastEligible } from './combat/KillFlowCounter.mjs';
 import { AXE_AOE_CHANNEL, isAOEChannelUnlocked } from './combat/ContinuousAOERules.mjs';
 import { pickForwardCombatTargets } from './combat/FreeAimCombatTargets';
@@ -1463,6 +1463,38 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const onBowVerifiedMiss=(event)=>bowVisuals.confirmMiss(event?.detail?.reason);
     window.addEventListener('game3dVerifiedBowHit',onBowVerifiedHit);
     window.addEventListener('game3dVerifiedBowMiss',onBowVerifiedMiss);
+    // Lightweight abilities progress meter. Charges tick in 10% increments;
+    // this text is updated in the existing animation frame, not by React
+    // rerenders, new intervals or network events.
+    const skillChargeHud=document.createElement('div');
+    skillChargeHud.dataset.game3dSkillCharge='true';
+    skillChargeHud.setAttribute('role','progressbar');
+    skillChargeHud.setAttribute('aria-label','Charged ability progress');
+    skillChargeHud.setAttribute('aria-valuemin','0');
+    skillChargeHud.setAttribute('aria-valuemax','100');
+    Object.assign(skillChargeHud.style,{
+      position:'absolute',bottom:'15%',left:'50%',transform:'translateX(-50%)',
+      zIndex:'64',width:'156px',padding:'6px 9px',borderRadius:'8px',
+      pointerEvents:'none',textAlign:'center',font:'bold 11px system-ui,sans-serif',
+      color:'#d8efff',background:'rgba(5,25,45,.78)',
+      border:'1px solid rgba(128,218,252,.62)',opacity:'0',
+    });
+    const skillChargeLabel=document.createElement('div');
+    skillChargeLabel.textContent='SKILL CHARGE 0%';
+    const skillChargeTrack=document.createElement('div');
+    Object.assign(skillChargeTrack.style,{
+      height:'5px',marginTop:'5px',background:'rgba(13,51,72,.95)',
+      borderRadius:'4px',overflow:'hidden',
+    });
+    const skillChargeFill=document.createElement('div');
+    Object.assign(skillChargeFill.style,{
+      height:'100%',width:'0%',background:'linear-gradient(90deg,#4aaee2,#ffe4a5)',
+    });
+    skillChargeTrack.appendChild(skillChargeFill);
+    skillChargeHud.appendChild(skillChargeLabel);
+    skillChargeHud.appendChild(skillChargeTrack);
+    container.appendChild(skillChargeHud);
+    const hideSkillCharge=()=>{skillChargeHud.style.opacity='0';};
     const dodgeVanish = { active: false, timer: 0, duration: 0.45 };
     const crouchTogglePressed = { current: false };
     const lastDirectionTap = { current: {} };
@@ -2026,6 +2058,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       keys.current = {};
       chargedKeys.clear();
       cancelBowCharge();
+      hideSkillCharge();
       for (const held of heldAOEKeys.values()) {
         window.dispatchEvent(new CustomEvent('axeAoeChannelStop', { detail: { token: held.token } }));
       }
@@ -2582,6 +2615,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
           attackPressed.current = false;
           rangedClickAttackPressed.current = false;
           cancelBowCharge();
+          hideSkillCharge();
           skillStrikeQueue.clear();
           interactPressed.current = false;
           abilityKeyPressed.current = -1;
@@ -2940,6 +2974,21 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
           isMountedRef.current||getPlayerHUD().hp<=0))cancelBowCharge();
         if(heldBow.active)bowVisuals.setCharge?.(
           getBowChargeStatus(performance.now()-heldBow.startedAt));
+        const heldSkill=chargedKeys.values().next().value;
+        if(heldSkill && !window.__axeUiModalOpen &&
+          !window.__axeServiceModeOpen && !window.__axeWorldMapOpen &&
+          !window.__axePauseMenuOpen && !window.__axeDialogueOpen &&
+          getPlayerHUD().hp>0) {
+          const charge=getSkillChargeStatus(getSkillById(heldSkill.skillId),
+            Date.now()-heldSkill.startAt);
+          if(skillChargeHud.getAttribute('aria-valuenow')!==String(charge.percent)){
+            skillChargeHud.setAttribute('aria-valuenow',String(charge.percent));
+            skillChargeLabel.textContent=charge.full
+              ?'ABILITY FULL · 100%': 'ABILITY CHARGE · '+charge.percent+'%';
+            skillChargeFill.style.width=charge.percent+'%';
+          }
+          skillChargeHud.style.opacity='1';
+        } else hideSkillCharge();
         bowVisuals.update(delta,{
           active:getActiveWeaponPath()==='ranged'&&!isMountedRef.current,
           blocked:entryModeRef.current||window.__axeUiModalOpen||
@@ -4333,6 +4382,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       heldAOEKeys.clear();
       chargedKeys.clear();
       cancelBowCharge();
+      hideSkillCharge();
+      skillChargeHud.remove();
       killFlowCounter.reset();
       skillStrikeQueue.clear();
       window.removeEventListener('axeMountForceDismount', handleForceDismount);
