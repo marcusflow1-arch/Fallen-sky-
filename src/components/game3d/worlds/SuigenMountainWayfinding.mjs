@@ -38,11 +38,9 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
   worldRoot.add(root);
   const stone=new THREE.MeshStandardMaterial({color:0x6e7880,roughness:.93,flatShading:false});
   const rockDark=new THREE.MeshStandardMaterial({color:0x485965,roughness:.96});
-  const moss=new THREE.MeshStandardMaterial({color:0x466b4f,roughness:.95});
   const bark=new THREE.MeshStandardMaterial({color:0x66533f,roughness:.91});
   const leaf=new THREE.MeshStandardMaterial({color:0x426f5c,roughness:.86,side:THREE.DoubleSide});
   const glyph=new THREE.MeshStandardMaterial({color:0x8fcee1,emissive:0x58a1d0,emissiveIntensity:1.1,metalness:.2,roughness:.32});
-  const postMat=new THREE.MeshStandardMaterial({color:0x9c7650,roughness:.77});
   const colliders=[],treads=[],stones=[],trunks=[],crowns=[];
   const ground=createSuigenTerrainHeightSampler(terrainRoot||worldRoot);
   const terrain=[];
@@ -280,7 +278,7 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
         if(node.isMesh && node!==group.children[2])node.geometry.dispose();
       });
       floorGeo?.dispose();
-      [stone,rockDark,moss,bark,leaf,glyph,postMat].forEach(m=>m.dispose());
+      [stone,rockDark,bark,leaf,glyph].forEach(m=>m.dispose());
       root.clear();
     },
   };
