@@ -39,7 +39,7 @@ test('Actual shops have an apothecary, weapons counter, forge and services',()=>
 
 test('All buildings receive interior geometry and walkable upper floors',()=>{
  for(const expr of ['gradeSuigenTownTerrain','const kitchenZ','// centre island',
-   '// refrigerator','// stovetop','// dinner','// Second storey',
+   '// refrigerator','// stovetop','// Dinner','// Second storey',
    'const steps=18','// The underside of the ROOF',
    'collide(plot,sx,y+.005,z','const door=new THREE.Group()',
    'SUIGEN_TOWN_PLOTS.entries()','mergeGeometries(colliderGeos,false)'])
