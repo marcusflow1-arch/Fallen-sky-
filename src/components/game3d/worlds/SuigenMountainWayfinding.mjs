@@ -238,7 +238,9 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
   const portalMeshes=[];
   for(const portal of SUIGEN_CAVE_PORTALS){
     if(portal.id==='vortex-lake')continue;
-    const y=ground(portal.x,portal.z)??0;
+    // The owner-authored first Abyss stair is at Y=3.5. The new canyon
+    // removes the old ground above it, so sampleGround could fall through.
+    const y=portal.id==='abyss-entry'?3.5:(ground(portal.x,portal.z)??0);
     const group=new THREE.Group();
     group.position.set(portal.x,y,portal.z);
     group.name='Suigen_Portal_'+portal.id;
@@ -304,9 +306,11 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
       for(const {lens} of portalMeshes){
         lens.geometry.dispose();lens.material.dispose();
       }
+      const portalGeometries=new Set();
       for(const {group} of portalMeshes)group.traverse(node=>{
-        if(node.isMesh && node!==group.children[2])node.geometry.dispose();
+        if(node.isMesh && node.geometry)portalGeometries.add(node.geometry);
       });
+      for(const geometry of portalGeometries)geometry.dispose();
       floorGeo?.dispose();
       [stone,rockDark,bark,leaf,glyph].forEach(m=>m.dispose());
       root.clear();
