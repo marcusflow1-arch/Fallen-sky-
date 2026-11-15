@@ -19,7 +19,7 @@ import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { getCompanionById, createCompanionLoadingManager } from './companionData';
 import { loadCompanionFolderClips } from './companionAnimationLoader';
 import { prepareMountAnimationClips } from './character/mountAnimations.mjs';
-import {createFactionThreeMountRig} from './character/factionThreeMountRig.mjs';
+import {createFactionThreeMountRig,isFactionThreeMount} from './character/factionThreeMountRig.mjs';
 import {createFactionThreeFacingFrame} from './character/factionThreeMountFacing.mjs';
 import { createMountedRiderPose } from './player/mountedRiderPose.mjs';
 
@@ -239,7 +239,8 @@ export function createRemoteCompanionManager(scene, {
       inst.lastMotionAt=now;
       // On the first packet place the mount at its actual network location.
       // Never visibly slide a newly spawned Faction 3 animal from world 0,0.
-      if (hasPosition && !inst.hasNetworkPosition) {
+      if (hasPosition && !inst.hasNetworkPosition &&
+          isFactionThreeMount(inst.definition)) {
         inst.group.position.copy(inst.targetPos);
         inst.group.rotation.y=inst.targetYaw;
       }
@@ -250,7 +251,8 @@ export function createRemoteCompanionManager(scene, {
       const moving=inst.mounted && hasAnimation ? d.anim==='run'||d.anim==='walk' : companionMoved;
       if (moving) inst.lastMovingAt=now;
       if (hasPosition) inst.hasNetworkPosition=true;
-      const holdFollowMotion=!inst.mounted && now-inst.lastMovingAt<240;
+      const holdFollowMotion=isFactionThreeMount(inst.definition) &&
+        !inst.mounted && now-inst.lastMovingAt<240;
       setAnim(inst,moving || holdFollowMotion ? 'run' : 'idle');
     });
   };
@@ -275,14 +277,17 @@ export function createRemoteCompanionManager(scene, {
       // one dropped WebRTC packet must not leave a permanent running loop.
       if(inst.lastMotionAt&&performance.now()-inst.lastMotionAt>850)
         setAnim(inst,'idle');
-      // Exponential damping keeps the same behavior at 30/60/120 fps.
-      // A large reconnect/teleport correction snaps instead of streaking.
+      // Faction 3 gets frame-rate-independent interpolation plus a bounded
+      // reconnect snap. Preserve other factions' existing interpolation.
+      const factionThree=isFactionThreeMount(inst.definition);
       const step=Math.min(.10,Math.max(0,Number(delta)||0));
-      if (inst.hasNetworkPosition && inst.group.position.distanceToSquared(inst.targetPos)>18*18)
+      if (factionThree && inst.hasNetworkPosition &&
+          inst.group.position.distanceToSquared(inst.targetPos)>18*18)
         inst.group.position.copy(inst.targetPos);
-      else inst.group.position.lerp(inst.targetPos,1-Math.exp(-12*step));
+      else inst.group.position.lerp(inst.targetPos,
+        factionThree ? 1-Math.exp(-12*step) : .5);
       const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),inst.targetYaw);
-      inst.group.quaternion.slerp(q,1-Math.exp(-14*step));
+      inst.group.quaternion.slerp(q,factionThree ? 1-Math.exp(-14*step) : .4);
       inst.secondaryRig?.update(delta); // post-network, post-mixer mount-space only
     });
   };
