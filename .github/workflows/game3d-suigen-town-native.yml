@@ -1,0 +1,44 @@
+name: Game 3D Clone Suigen Town Native Verification
+on:
+  pull_request:
+    paths:
+      - 'src/components/game3d/worlds/**'
+      - 'src/components/game3d/GameWorld3D.jsx'
+      - 'src/pages/GameView.jsx'
+      - 'tests/game3d-suigen-*.test.mjs'
+      - '.github/workflows/game3d-suigen-town-native.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/components/game3d/worlds/**'
+      - 'src/components/game3d/GameWorld3D.jsx'
+      - 'src/pages/GameView.jsx'
+      - 'tests/game3d-suigen-*.test.mjs'
+      - '.github/workflows/game3d-suigen-town-native.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  suigen-native-tests-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install project dependencies
+        run: npm ci
+      - name: Check Suigen native JS modules
+        run: |
+          node --check src/components/game3d/worlds/SuigenTownPlan.mjs
+          node --check src/components/game3d/worlds/SuigenTownDistrict.mjs
+          node --check src/components/game3d/worlds/SuigenTerrainHeight.mjs
+          node --check src/components/game3d/worlds/SuigenMountainWayfinding.mjs
+          node --check src/components/game3d/worlds/loadSuigenWorld.mjs
+      - name: Test original world fallback and new town/dungeon contracts
+        run: |
+          node --test tests/game3d-suigen-map-variant.test.mjs tests/game3d-suigen-town-upgrade.test.mjs tests/game3d-suigen-terrain-height.test.mjs
+      - name: Build complete clone client
+        run: npm run build
