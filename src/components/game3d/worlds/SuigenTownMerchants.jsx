@@ -53,7 +53,12 @@ export default function SuigenTownMerchants(){
       setMerchant(found);setStatus('');window.__axeUiModalOpen=true;
     };
     window.addEventListener(SUIGEN_MERCHANT_EVENT,open);
-    return ()=>window.removeEventListener(SUIGEN_MERCHANT_EVENT,open);
+    return ()=>{
+      window.removeEventListener(SUIGEN_MERCHANT_EVENT,open);
+      // An open shop must not leave the entire game input-locked after
+      // world teardown or a character switch.
+      window.__axeUiModalOpen=false;
+    };
   },[]);
   const close=()=>{
     setMerchant(null);setStatus('');
