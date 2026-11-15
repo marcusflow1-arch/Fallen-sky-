@@ -310,7 +310,7 @@ export default function AXEAppearanceWorkspace({ serviceId = 'character', statio
         </GlassCard> : <AXEAppearanceDetails
           key={tab}
           tab={tab} selectedItem={selectedItem}
-          vanity={vanity} costumes={costumes} capes={capes}
+          vanity={vanity} costumes={costumes}
           onSelectPiece={id => setSelected({kind:'vanity',id})}
           onNotice={setNotice}
         />}
