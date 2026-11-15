@@ -2,7 +2,8 @@
 // armature. No eye material, mesh topology, skin weight, inverse bind matrix,
 // original animation clip or visible geometry is rewritten.
 import * as THREE from 'three';
-import {isFactionThreeMount} from './factionThreeMountRig.mjs';
+const isFactionThreeMount = definition =>
+  definition?.animationRigProfile === 'winged_faction_3_160';
 
 const normalized = value => String(value||'').replace(/[^a-z0-9]/gi,'').toLowerCase();
 const eyeSide = name => {
