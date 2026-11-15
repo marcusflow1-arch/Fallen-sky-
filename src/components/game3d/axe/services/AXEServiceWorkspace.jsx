@@ -35,7 +35,9 @@ class WorkspaceBoundary extends Component {
   }
 }
 
-export default function AXEServiceWorkspace({ mode, onClose }) {
+export default function AXEServiceWorkspace({
+  mode, onClose, onCharacterTabChange, focusCharacterRequest = 0,
+}) {
   const group = getAXEServiceGroup(mode.groupId);
   const root = useRef(null);
   const [mobilePane, setMobilePane] = useState('inventory');
@@ -99,7 +101,9 @@ export default function AXEServiceWorkspace({ mode, onClose }) {
             </div> : group.id === 'quest_logbook' ? <div className="axe-service-progression">
               <QuestLogbookWorkspace onClose={onClose} verifiedQuestbookReader={verifiedQuestbookReader170} />
             </div> : group.id === 'character' ? <div className="axe-service-progression">
-              <AppearanceWorkspace serviceId={mode.serviceId} stationMessage={mode.message} onClose={onClose} />
+              <AppearanceWorkspace serviceId={mode.serviceId} stationMessage={mode.message}
+                onClose={onClose} onActiveTabChange={onCharacterTabChange}
+                focusCharacterRequest={focusCharacterRequest} />
             </div> : group.id === 'blacksmith' ? <>
               <nav className="axe-service-mobile-panes" aria-label="Workspace panels">
                 <button type="button" aria-pressed={mobilePane === 'inventory'} onClick={() => setMobilePane('inventory')}>Inventory</button>
