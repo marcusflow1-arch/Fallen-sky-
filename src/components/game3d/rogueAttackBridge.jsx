@@ -14,8 +14,9 @@ import { AXE_TEMPORARY_BONUS_CAP, resolveAXEHeroStrike } from './axe/combat/AXES
 import { getAbilityState, updateTargetHP } from './abilityStore';
 import { updateBoss } from './bossStore';
 import { BOW_PVE_RANGE, selectCameraBowTarget } from './combat/BowCameraAim.mjs';
+import { applyBowImpactDamage } from './combat/ArcheryChargeRules.mjs';
 
-const BRIDGE_VERSION = 'world-boss-straight-bow-tracer-v6';
+const BRIDGE_VERSION = 'world-boss-release-charge-headshot-v7';
 const bossShotRaycaster = new THREE.Raycaster();
 const bossAimBox = new THREE.Box3();
 const bossAimCenter = new THREE.Vector3();
@@ -297,14 +298,6 @@ function resolveBowPriorityTarget(preselectedBowTarget) {
   return null;
 }
 
-let rangedChargeStartedAt = 0;
-let rangedChargeActive = false;
-let lastRangedBaseDamage = 0;
-let lastRangedSkillMultiplier = 1;
-let lastPointerEvent = null;
-let bossDamagedThisPressId = null;
-let rogueDamagedThisPressId = null;
-
 function isRangedWeapon() {
   try {
     return getActiveWeaponPath() === 'ranged';
@@ -321,78 +314,21 @@ function installBossAndBowBridge() {
   // version when possible so stale handlers cannot keep running old hit logic.
   try { window.__atomXeBossCombatBridgeCleanup?.(); } catch { /* non-fatal */ }
 
-  const onMouseDown = (event) => {
-    const worldCanvas=window.__gw3dRenderer?.domElement;
-    if(event?.button!==0||!isRangedWeapon()||
-       !worldCanvas||event?.target!==worldCanvas||
-       window.__activeDuel||window.__axeUiModalOpen||
-       window.__axeServiceModeOpen||window.__axeWorldMapOpen||
-       window.__axePauseMenuOpen||window.__axeDialogueOpen)return;
-    lastPointerEvent = {
-      clientX: Number.isFinite(Number(event?.clientX)) ? Number(event.clientX) : null,
-      clientY: Number.isFinite(Number(event?.clientY)) ? Number(event.clientY) : null,
-      target: event?.target || null,
-    };
-    rangedChargeStartedAt = performance.now();
-    rangedChargeActive = true;
-    lastRangedBaseDamage = 0;
-    bossDamagedThisPressId = null;
-    rogueDamagedThisPressId = null;
-  };
-
-  const onMouseUp = (event) => {
-    if(event?.button!==0||!rangedChargeActive)return;
-    const heldSeconds=Math.max(0,(performance.now()-rangedChargeStartedAt)/1000);
-    rangedChargeActive=false;
-    if(!isRangedWeapon()||window.__activeDuel||lastRangedBaseDamage<=0)return;
-    const fullCharge=Math.min(1,heldSeconds/1.3);
-    const overcharge=Math.max(0,heldSeconds-1.3)*.25;
-    const chargeMultiplier=Math.min(AXE_TEMPORARY_BONUS_CAP,1+fullCharge+overcharge);
-    const bonusDamage=Math.max(0,lastRangedBaseDamage*(chargeMultiplier-1));
-    // A release never invents a new hit. It only tops up an attack already
-    // verified by the normal combat resolver during this press.
-    if(bonusDamage>=1&&bossDamagedThisPressId)
-      applyBossDamage(bossDamagedThisPressId,bonusDamage,'charged_bow_bonus');
-    else if(bonusDamage>=1&&rogueDamagedThisPressId)
-      applyLockedRogueDamage(rogueDamagedThisPressId,bonusDamage,'charged_bow_bonus');
-    bossDamagedThisPressId=null;
-    rogueDamagedThisPressId=null;
-    lastRangedBaseDamage=0;
-  };
-
   const onRogueDamage = (event) => {
     const target = getAbilityState().target;
     if (!target) return;
 
-    if (isRangedWeapon()) {
-      if (target.kind !== 'boss' && target.kind !== 'rogue') return;
-      if (rangedChargeActive) {
-        lastRangedBaseDamage = Math.max(1, Number(event?.detail?.damage) || 1);
-        event?.stopImmediatePropagation?.();
-      }
-      return;
-    }
+    // Bow firing now occurs on left-click RELEASE in GameWorld3D, with one
+    // actual confirmed damage application. Never add a second charge hit.
+    if (isRangedWeapon()) return;
 
     if (target.kind === 'boss') {
       applyBossDamage(target.id, Number(event?.detail?.damage) || 1, 'player_attack');
     }
   };
 
-  // Losing focus must never leave a phantom charged attack armed.
-  const onBlur=()=>{
-    rangedChargeActive=false;
-    bossDamagedThisPressId=null;rogueDamagedThisPressId=null;
-    lastRangedBaseDamage=0;
-  };
-  window.addEventListener('blur',onBlur);
-  window.addEventListener('mousedown', onMouseDown, true);
-  window.addEventListener('mouseup', onMouseUp, true);
   window.addEventListener('rogueAITakeDamage', onRogueDamage);
-
   window.__atomXeBossCombatBridgeCleanup = () => {
-    window.removeEventListener('blur',onBlur);
-    window.removeEventListener('mousedown', onMouseDown, true);
-    window.removeEventListener('mouseup', onMouseUp, true);
     window.removeEventListener('rogueAITakeDamage', onRogueDamage);
   };
   window.__atomXeBossCombatBridgeInstalled = true;
@@ -418,29 +354,27 @@ installBossAndBowBridge();
  * Otherwise preserve the existing rogue-AI event path and normal enemy combat.
  */
 export function dispatchRogueAttack(playerDerivedRef, skillStrikeMult = 1.0, preselectedBowTarget) {
-  lastRangedSkillMultiplier = skillStrikeMult;
-
   const ranged=isRangedWeapon();
   const bowPriority=ranged?resolveBowPriorityTarget(preselectedBowTarget):null;
   const boss=bowPriority?.kind==='boss'?bowPriority.target:null;
   if (boss) {
     const strike = heroStrike(playerDerivedRef, boss, skillStrikeMult, 'boss');
-    lastRangedBaseDamage=strike.kind==='hit'?strike.damage:0;
     if(strike.kind==='hit'){
-      const applied=applyBossDamage(boss.id,strike.damage,'arrow');
+      const arrowDamage=applyBowImpactDamage(strike.damage,{
+        chargeMultiplier:preselectedBowTarget?.chargeMultiplier,
+        headshot:preselectedBowTarget?.headshot,pve:ranged,
+      });
+      const applied=applyBossDamage(boss.id,arrowDamage,'arrow');
       if(applied>0){
-        bossDamagedThisPressId=boss.id;
         window.dispatchEvent(new CustomEvent('game3dVerifiedBowHit',{
-          detail:{targetId:boss.id,damage:applied},
+          detail:{targetId:boss.id,damage:applied,headshot:!!preselectedBowTarget?.headshot},
         }));
       }else{
-        lastRangedBaseDamage=0;
         window.dispatchEvent(new CustomEvent('game3dVerifiedBowMiss',{
           detail:{targetId:boss.id,reason:'MISS'},
         }));
       }
     }else{
-      lastRangedBaseDamage=0;
       window.dispatchEvent(new CustomEvent('game3dVerifiedBowMiss',{
         detail:{targetId:boss.id,reason:strike.kind==='dodge'?'DODGED':'MISS'},
       }));
@@ -453,22 +387,22 @@ export function dispatchRogueAttack(playerDerivedRef, skillStrikeMult = 1.0, pre
     target?.kind==='rogue'?findLiveRogue(target.id):null;
   if (rogue) {
     const strike = heroStrike(playerDerivedRef, rogue, skillStrikeMult, 'rogue');
-    lastRangedBaseDamage=strike.kind==='hit'&&ranged?strike.damage:0;
     if(strike.kind==='hit'){
-      const applied=applyLockedRogueDamage(rogue.id,strike.damage,'player_attack');
+      const arrowDamage=ranged?applyBowImpactDamage(strike.damage,{
+        chargeMultiplier:preselectedBowTarget?.chargeMultiplier,
+        headshot:preselectedBowTarget?.headshot,pve:true,
+      }):strike.damage;
+      const applied=applyLockedRogueDamage(rogue.id,arrowDamage,'player_attack');
       if(applied>0&&ranged){
-        rogueDamagedThisPressId=rogue.id;
         window.dispatchEvent(new CustomEvent('game3dVerifiedBowHit',{
-          detail:{targetId:rogue.id,damage:applied},
+          detail:{targetId:rogue.id,damage:applied,headshot:!!preselectedBowTarget?.headshot},
         }));
       }else if(ranged){
-        lastRangedBaseDamage=0;
         window.dispatchEvent(new CustomEvent('game3dVerifiedBowMiss',{
           detail:{targetId:rogue.id,reason:'MISS'},
         }));
       }
     }else if(ranged){
-      lastRangedBaseDamage=0;
       window.dispatchEvent(new CustomEvent('game3dVerifiedBowMiss',{
         detail:{targetId:rogue.id,reason:strike.kind==='dodge'?'DODGED':'MISS'},
       }));
@@ -478,10 +412,9 @@ export function dispatchRogueAttack(playerDerivedRef, skillStrikeMult = 1.0, pre
 
   // A ranged miss at the small crosshair cannot trigger legacy area/nearby
   // rogue damage. The forward melee fallback below remains unchanged.
-  if(ranged){lastRangedBaseDamage=0;return false;}
+  if(ranged)return false;
   // A nearby rogue (EnemyPlayerSpawner) resolves melee against its own stats.
   const estimate = estimateSwing(playerDerivedRef, null, skillStrikeMult, 'rogue');
-  lastRangedBaseDamage = estimate;
   window.dispatchEvent(new CustomEvent('rogueAITakeDamage', {
     detail: { damage: estimate, skillMultiplier: skillStrikeMult, hero: heroOf(playerDerivedRef) },
   }));
