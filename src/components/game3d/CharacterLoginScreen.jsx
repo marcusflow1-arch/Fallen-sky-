@@ -5,6 +5,7 @@ import {useCompanionIdentity} from '@/components/onboarding/CompanionIdentityCon
 import {CULTURAL_INSPIRATIONS, GENRE_DIRECTIONS} from '@/components/onboarding/creatorCultures';
 import {AXE_FACTIONS, getAXEFaction} from './axe/factions/AXEFactionWeaponConfig';
 import CreatorStage from '@/components/onboarding/CreatorStage';
+import SelectedCharacterArmorPreview from './equipment/SelectedCharacterArmorPreview';
 import FactionDossier from './axe/factions/FactionDossier';
 import {
   subscribeCharacters,
@@ -547,7 +548,7 @@ export default function CharacterLoginScreen({ onPlay, onBack, workflowEnabled =
       {step==='select' && <section className="axe-login-avatar-stage"
         aria-label="Selected character 3D preview">
         {selected
-          ? <CreatorStage key={selected.id} config={selected} shot="body"
+          ? <SelectedCharacterArmorPreview key={selected.id} character={selected} shot="body"
               livingIdle={motionEnabled} expression={{values:{smile:motionEnabled ? 0.12 : 0,brow_up:motionEnabled ? 0.025 : 0}}}/>
           : <div className="axe-login-no-character" aria-hidden="true">✧</div>}
       </section>}
