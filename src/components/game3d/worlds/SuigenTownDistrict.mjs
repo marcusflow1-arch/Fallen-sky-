@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import {SUIGEN_TOWN_PLOTS,SUIGEN_MERCHANT_CATALOG,suigenTownTravelPlan} from './SuigenTownPlan.mjs';
+import {SUIGEN_TOWN_PLOTS,suigenTownTravelPlan} from './SuigenTownPlan.mjs';
 import {createSuigenTerrainHeightSampler} from './SuigenTerrainHeight.mjs';
 
 const unit=new THREE.BoxGeometry(1,1,1);
@@ -459,9 +459,10 @@ export function createSuigenTownDistrict({worldRoot,terrainRoot}={}){
     instanced.name='Suigen_'+key+'_Instanced_Architectural_Details';
     instanced.castShadow=key!=='glass'&&key!=='glow';
     instanced.receiveShadow=true;
-    instanced.frustumCulled=false;
     matrices.forEach((matrix,i)=>instanced.setMatrixAt(i,matrix));
     instanced.instanceMatrix.needsUpdate=true;
+    instanced.computeBoundingSphere();
+    instanced.frustumCulled=true; // don't render the entire town from far mountain regions
     root.add(instanced);
   }
   const colliders=colliderGeos.length?mergeGeometries(colliderGeos,false):null;
