@@ -106,12 +106,34 @@ function buildReticle(container){
     pointerEvents:'none',
   });
   host.appendChild(result);
+  const chargeTrack=document.createElement('div');
+  chargeTrack.dataset.game3dBowCharge='true';
+  Object.assign(chargeTrack.style,{
+    position:'absolute',top:'63px',left:'50%',transform:'translateX(-50%)',
+    width:'106px',height:'7px',borderRadius:'9px',
+    border:'1px solid #7fbdca',background:'rgba(7,24,41,.77)',
+    boxShadow:'0 0 7px #164a6e',overflow:'hidden',opacity:'0',
+  });
+  const chargeFill=document.createElement('div');
+  Object.assign(chargeFill.style,{
+    width:'0%',height:'100%',background:'linear-gradient(90deg,#58bce5,#fff0ad)',
+    transition:'none',boxShadow:'0 0 7px #a6eaff',
+  });
+  chargeTrack.appendChild(chargeFill);host.appendChild(chargeTrack);
+  const chargeLabel=document.createElement('div');
+  chargeLabel.dataset.game3dBowChargeLabel='true';
+  Object.assign(chargeLabel.style,{
+    position:'absolute',top:'73px',left:'50%',transform:'translateX(-50%)',
+    font:'bold 10px/1.2 system-ui,sans-serif',letterSpacing:'.1em',
+    color:'#b9efff',whiteSpace:'nowrap',opacity:'0',textShadow:'0 1px 4px #000',
+  });
+  host.appendChild(chargeLabel);
   container.appendChild(host);
-  return {host,marker,result};
+  return {host,marker,result,chargeTrack,chargeFill,chargeLabel};
 }
 
 export function createGame3DBowAimVisuals({scene,container,showDot=true}={}){
-  if(!scene||!container)return {fire:()=>false,confirmHit:()=>{},confirmMiss:()=>{},showNotice:()=>{},noteAimTime:()=>{},stats:()=>({fired:0,hits:0,misses:0,pending:0,lastResolutionMs:null}),update:()=>{},dispose:()=>{}};
+  if(!scene||!container)return {fire:()=>false,confirmHit:()=>{},confirmMiss:()=>{},showNotice:()=>{},showHeadshot:()=>{},setCharge:()=>{},noteAimTime:()=>{},stats:()=>({fired:0,hits:0,misses:0,pending:0,lastResolutionMs:null}),update:()=>{},dispose:()=>{}};
   const overlay=typeof document!=='undefined'?buildReticle(container):null;
   if(overlay&&!showDot){overlay.host.firstChild.style.display='none';overlay.host.style.zIndex='61';}
   const birds=[];
@@ -222,6 +244,23 @@ export function createGame3DBowAimVisuals({scene,container,showDot=true}={}){
     const label=['DODGED','BLOCKED','OUT OF RANGE','NO TARGET'].includes(reason)?reason:'MISS';
     setResult(label,0xff5d65);
   };
+  const showHeadshot=(damage)=>{
+    if(disposed||!overlay)return;
+    overlay.result.textContent='HEADSHOT ×2 · '+Math.round(Number(damage)||0);
+    overlay.result.style.color='#ffe8a2';
+    resultSeconds=.95;
+  };
+  const setCharge=(status)=>{
+    if(disposed||!overlay)return;
+    const active=!!status;
+    const percent=Math.max(0,Math.min(100,Number(status?.percent)||0));
+    overlay.chargeTrack.style.opacity=active?'1':'0';
+    overlay.chargeLabel.style.opacity=active?'1':'0';
+    if(!active)return;
+    overlay.chargeFill.style.width=percent+'%';
+    overlay.chargeLabel.textContent=status.full?'FULL DRAW · 100%':'CHARGE · '+percent+'%';
+    overlay.chargeLabel.style.color=status.full?'#ffe7a4':'#b9efff';
+  };
   const showNotice=(message)=>{
     if(disposed||!overlay)return;
     // No arrow was fired; do not recolor the previous shot or add a MISS.
@@ -267,7 +306,7 @@ export function createGame3DBowAimVisuals({scene,container,showDot=true}={}){
     spare.splice(0).forEach(item=>releaseBird(item,scene));
     overlay?.host.remove();
   };
-  return {fire,confirmHit,confirmMiss,showNotice,noteAimTime,update,dispose,
+  return {fire,confirmHit,confirmMiss,showHeadshot,setCharge,showNotice,noteAimTime,update,dispose,
     stats:()=>({
       ...shotStats,
       pending:Math.max(0,shotStats.fired-shotStats.hits-shotStats.misses),
