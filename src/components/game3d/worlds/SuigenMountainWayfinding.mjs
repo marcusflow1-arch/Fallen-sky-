@@ -47,6 +47,35 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
   const terrain=[];
   (terrainRoot||worldRoot).traverse(node=>{if(node.isMesh&&node.name==='Map_Terrain_2400m')terrain.push(node);});
   terrainRoot?.updateMatrixWorld(true);
+  // The owner's historic 26 steps disappear beneath an intact imported
+  // terrain surface (at z≈328 the uncut ground is ~34m ABOVE the -25m vault).
+  // Carve only this narrow canyon corridor in the clone's loaded copy of the
+  // 2400m mesh. The source GLB and Classic world remain immutable.
+  let carvedTriangles=0;
+  for(const mesh of terrain){
+    const geometry=mesh.geometry;
+    const position=geometry?.getAttribute?.('position');
+    const indices=geometry?.index;
+    if(!position||!indices)continue;
+    const keep=[];
+    const inside=(v)=>{
+      const x=position.getX(v),z=position.getZ(v);
+      return Math.abs(x+440)<12.5&&z>=320&&z<=427;
+    };
+    for(let i=0;i<indices.count;i+=3){
+      const a=indices.getX(i),b=indices.getX(i+1),c=indices.getX(i+2);
+      // Remove full crossing triangles, not a tiny hole between vertices.
+      if(inside(a)||inside(b)||inside(c)){carvedTriangles++;continue;}
+      keep.push(a,b,c);
+    }
+    if(carvedTriangles){
+      const carved=geometry.clone();
+      carved.setIndex(keep);
+      mesh.geometry=carved;
+      geometry.dispose();
+      mesh.userData.suigenAbyssCarvedTriangles=carvedTriangles;
+    }
+  }
   const ground=(x,z)=>{
     ray.set(new THREE.Vector3(x,1500,z),down);
     const hit=ray.intersectObjects(terrain,false)[0];
@@ -80,6 +109,22 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
       rock.scale.set(.75+(i%4)*.15,.5+.16*(i%3),.8);
       rock.rotation.set(.08*i,.13*i,.04*i);
       rock.castShadow=true;rock.receiveShadow=true;root.add(rock);stones.push(rock);
+    }
+  }
+  // Reinforce both trench walls with believable rocky terraces. The corridor
+  // center remains clear so stairs, mounts on permitted routes, and the camera
+  // have a reliable walkable passage to the underground vault.
+  for(let bank=0;bank<2;bank++){
+    const side=bank?1:-1;
+    for(let n=0;n<35;n++){
+      const z=424-n*2.9,fall=(420-z)/(420-357.5);
+      const stepY=3.5-26.923*Math.max(0,Math.min(1,fall));
+      const rock=new THREE.Mesh(boulderShape,n%4?rockDark:stone);
+      rock.position.set(-440+side*(6.4+(n%4)*.9),
+        stepY+1.25+(n%5)*.38,z);
+      rock.scale.set(2.1+(n%3)*.43,2.7+(n%4)*.34,2.45);
+      rock.rotation.set(.02*n,.13*n,.04*n);
+      root.add(rock);stones.push(rock);
     }
   }
   // The descent approaches a preserved deep vault at x=-440,z=328.
@@ -191,6 +236,7 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
     group.userData.returnToGate=portal.returnToGate;
     root.add(group);portalMeshes.push({group,lens,key,portal});
   }
+  root.userData.suigenAbyssCarvedTriangles=carvedTriangles;
   const floorGeo=colliders.length?mergeGeometries(colliders,false):null;
   colliders.forEach(c=>c.dispose());
   const walkables=[];
