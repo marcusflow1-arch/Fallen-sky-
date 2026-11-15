@@ -53,7 +53,8 @@ import { getActiveCharacter } from './characterStore';
 import { getCompanionById, createCompanionLoadingManager } from './companionData';
 import { loadCompanionFolderClips } from './companionAnimationLoader';
 import { prepareMountAnimationClips } from './character/mountAnimations.mjs';
-import {createFactionThreeMountRig} from './character/factionThreeMountRig.mjs';
+import {createFactionThreeMountRig,isFactionThreeMount} from './character/factionThreeMountRig.mjs';
+import {createFactionThreeFacingFrame} from './character/factionThreeMountFacing.mjs';
 import { createMountedRiderPose } from './player/mountedRiderPose.mjs';
 import { createMountedWeaponPresentation } from './player/mountedWeaponPresentation.mjs';
 import { createEquippedBowGLBPresentation } from './player/equippedBowGLBPresentation.mjs';
@@ -790,6 +791,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     let companionAssetVersion = 0;
     let companionAssetDisposed = false;
     let companionSecondaryRig = null; // actual Faction 3 mount, never rider/camera
+    let factionThreeLastRunAt = -Infinity; // absorb tiny follower/terrain state flickers
     let mountedRider = null;
     let mountedWeapon = null;
     let heldBowPresentation = null;
@@ -811,21 +813,21 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       if (!companionDef) return;
       const setupCompanion = (companionModel, embeddedClips = []) => {
         if (companionAssetDisposed || assetVersion !== companionAssetVersion) return;
-        const box = new THREE.Box3().setFromObject(companionModel);
+        // Keep the navigation root aligned with world +Z while the actual
+        // Faction 3 animal mesh faces the same bearing as its anatomy.
+        // This inner-only correction never changes the player's motion/yaw.
+        const {worldRoot: companionWorldRoot} =
+          createFactionThreeFacingFrame(companionModel, companionDef);
+        const box = new THREE.Box3().setFromObject(companionWorldRoot);
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
         const compScale = (1.7 / maxDim) * (companionDef.scale || 1.0);
-        companionModel.scale.setScalar(compScale);
-        companionModel.position.set(
+        companionWorldRoot.scale.setScalar(compScale);
+        companionWorldRoot.position.set(
           companionDef.spawnPos[0],
           companionDef.spawnPos[1],
           companionDef.spawnPos[2],
         );
-        // Run the one-time #160 shoulder/wing anchor repair before the
-        // mount's own mixer starts; the appendage spring updates after BOTH
-        // mount animation and world navigation, never from the rider pose.
-        companionSecondaryRig?.dispose();
-        companionSecondaryRig=createFactionThreeMountRig(companionModel,companionDef);
 
         companionModel.traverse((node) => {
           if (node.isMesh) {
@@ -845,13 +847,17 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.rotation.x = -Math.PI / 2;
         ring.position.y = 0.02 / compScale;
-        companionModel.add(ring);
+        companionWorldRoot.add(ring);
 
-        scene.add(companionModel);
-        snapToGround(companionModel, 0);
+        scene.add(companionWorldRoot);
+        snapToGround(companionWorldRoot, 0);
+        // Anchor repair is calculated after placement, before animation;
+        // spring motion remains driven only by the mount's own transform.
+        companionSecondaryRig?.dispose();
+        companionSecondaryRig=createFactionThreeMountRig(companionModel,companionDef);
 
         const compMixer = new THREE.AnimationMixer(companionModel);
-        companionGroupRef.current = companionModel;
+        companionGroupRef.current = companionWorldRoot;
         companionMixerRef.current = compMixer;
 
         // Helper: bind idle + walk clips onto this companion's mixer.
@@ -970,6 +976,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       const previous = companionGroupRef.current;
       companionSecondaryRig?.dispose();
       companionSecondaryRig=null;
+      factionThreeLastRunAt=-Infinity;
       companionGroupRef.current = null;
       companionMixerRef.current?.stopAllAction?.();
       companionMixerRef.current = null;
@@ -2218,6 +2225,14 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     renderer.domElement.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
 
     const playCompanionAnimation = (targetAnim) => {
+      // Faction 3's retargeted clips can alternate on tiny follow packets
+      // or terrain-contact steps. Hold the running cycle briefly instead
+      // of resetting cross-fades every other frame. Other mounts unchanged.
+      if (isFactionThreeMount(companionDefRef.current)) {
+        const now=performance.now();
+        if (targetAnim==='run') factionThreeLastRunAt=now;
+        else if (targetAnim==='idle' && now-factionThreeLastRunAt<170) return;
+      }
       const idle = companionIdleActionRef.current;
       const walk = companionWalkActionRef.current;
       const run = companionRunActionRef.current;
@@ -2718,8 +2733,12 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
           // pelvis on the mount and solves the legs/arms after all animation.
           compGroup.position.x = model.position.x;
           compGroup.position.z = model.position.z;
-          // Match player rotation so steering feels natural
-          compGroup.quaternion.slerp(model.quaternion, ROT_SMOOTH);
+          // The visual animal's forward axis is compensated only within
+          // its child frame. The world root still tracks player movement.
+          // Time-based smoothing removes frame-rate-dependent turn jitter.
+          const mountTurn=isFactionThreeMount(companionDefRef.current)
+            ? 1-Math.exp(-16*Math.min(Math.max(delta,0),.1)) : ROT_SMOOTH;
+          compGroup.quaternion.slerp(model.quaternion, mountTurn);
           if (mapReady) {
             const gy = sampleGroundY(compGroup.position.x, compGroup.position.z);
             if (gy !== null) {
