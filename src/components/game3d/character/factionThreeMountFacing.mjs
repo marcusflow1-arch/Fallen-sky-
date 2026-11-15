@@ -21,16 +21,34 @@ function findBone(root, wanted) {
 /** Returns the one-time visual yaw needed to point the actual nose toward +Z. */
 export function factionThreeVisualFacingYaw(model, definition = {}) {
   if (!model || !isFactionThreeMount(definition)) return 0;
-  const head = findBone(model, 'head'), pelvis = findBone(model, 'pelvis');
-  if (!head || !pelvis) return 0; // Never guess an axis on a different fallback asset.
   model.updateWorldMatrix(true, true);
-  const front = head.getWorldPosition(new THREE.Vector3())
-    .sub(pelvis.getWorldPosition(new THREE.Vector3()));
+  // Faction 3 #160 has independent head/neck and tail animation. Head-to-
+  // pelvis is not a stable anatomical forward axis for this imported rig:
+  // the head can sit laterally to the pelvis, making a galloping tiger appear
+  // to run 90 degrees sideways. The paired shoulder and hip joints instead
+  // define the actual longitudinal body axis in the original bind pose.
+  const frontLeft = findBone(model, 'front.l.upper');
+  const frontRight = findBone(model, 'front.r.upper');
+  const hindLeft = findBone(model, 'hind.l.upper');
+  const hindRight = findBone(model, 'hind.r.upper');
+  const center = (a, b) => a.getWorldPosition(new THREE.Vector3())
+    .add(b.getWorldPosition(new THREE.Vector3())).multiplyScalar(.5);
+  const front = frontLeft && frontRight && hindLeft && hindRight
+    ? center(frontLeft, frontRight).sub(center(hindLeft, hindRight))
+    : new THREE.Vector3();
   front.y = 0;
+  // A missing or degenerate leg chain falls back to the previous head/pelvis
+  // measurement. Neither path guesses a fixed +/-90-degree asset offset.
+  if (front.lengthSq() < 1e-6) {
+    const head = findBone(model, 'head'), pelvis = findBone(model, 'pelvis');
+    if (!head || !pelvis) return 0;
+    front.copy(head.getWorldPosition(new THREE.Vector3())
+      .sub(pelvis.getWorldPosition(new THREE.Vector3())));
+    front.y = 0;
+  }
   if (front.lengthSq() < 1e-6) return 0;
-  // yaw=atan2(x,z) matches GameWorld3D and CompanionAISystem's move bearing.
-  // The correction is measured from the *actual world-space bind geometry*,
-  // including any authored rotation on the imported glTF scene.
+  // yaw=atan2(x,z) matches GameWorld3D/CompanionAISystem movement bearing.
+  // Measure once before the mixer starts; never correct every rendered frame.
   return -Math.atan2(front.x, front.z);
 }
 
