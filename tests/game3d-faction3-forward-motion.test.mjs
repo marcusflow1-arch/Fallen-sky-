@@ -78,5 +78,6 @@ test('remote mounts share corrected heading and frame-rate stable interpolation'
   assert.match(remote,/1-Math\.exp\(-12\*step\)/);
   assert.match(remote,/1-Math\.exp\(-14\*step\)/);
   assert.match(remote,/now-inst\.lastMovingAt<240/);
-  assert.match(remote,/if \(hasPosition && !inst\.hasNetworkPosition\)/);
+  assert.match(remote,/if \(hasPosition && !inst\.hasNetworkPosition &&/);
+  assert.match(remote,/isFactionThreeMount\(inst\.definition\)/);
 });
