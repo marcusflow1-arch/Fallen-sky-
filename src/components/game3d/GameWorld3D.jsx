@@ -739,6 +739,24 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         classifyBlazeBiome({region}),
     });
     window.__gw3dAtomicLook=atomicLook;
+    // Explicit, opt-in clone map export. Captures the SAME assembled scene
+    // seen in play; it never repositions or detaches world objects.
+    const exportLiveGame3DMap = async ({allowPartialAssets=false,...options}={}) => {
+      if (window.__gw3dScene !== scene) throw Error('The Game 3D world is no longer mounted');
+      if (region === 'wolfveil' && !allowPartialAssets) {
+        const houses = await wolfveilVillage?.houseModels?.ready;
+        if (!houses) throw Error('Wolfveil house GLB unavailable: refusing incomplete full-map export');
+        let checks = 0;
+        while (importedSpawnTown?.status === 'loading' && checks++ < 120) {
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        if (importedSpawnTown?.status !== 'ready')
+          throw Error('Wolfveil imported town GLB not ready: refusing incomplete full-map export');
+      }
+      const {exportGame3DFullMap} = await import('./mapExport/Game3DFullMapExporter.mjs');
+      return exportGame3DFullMap({...options,scene,region});
+    };
+    window.exportGame3DMap = exportLiveGame3DMap;
     mapReady = true;
     // Flush any spawn snapping that queued before this point (none in practice
     // since this runs synchronously, but kept for safety).
@@ -4296,6 +4314,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       if (remoteManagerRef.current) { remoteManagerRef.current.dispose(); remoteManagerRef.current = null; }
       remoteCompanionManager.dispose();
       // Slice C — clear scene refs
+      if (window.exportGame3DMap === exportLiveGame3DMap) window.exportGame3DMap = null;
       if (window.__gw3dScene === scene) window.__gw3dScene = null;
       if (window.__gw3dCamera === camera) window.__gw3dCamera = null;
       if (window.__gw3dRenderer === renderer) window.__gw3dRenderer = null;
