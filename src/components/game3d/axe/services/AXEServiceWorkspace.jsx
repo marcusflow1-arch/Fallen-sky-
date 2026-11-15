@@ -62,7 +62,7 @@ export default function AXEServiceWorkspace({ mode, onClose }) {
         event.stopPropagation();
       }} onPointerDown={event => event.stopPropagation()} onMouseDown={event => event.stopPropagation()}
       onWheel={event => event.stopPropagation()}>
-      {group.id !== 'blacksmith' && group.id !== 'skills' && group.id !== 'quest_logbook' && <header className="axe-service-heading">
+      {group.id !== 'blacksmith' && group.id !== 'skills' && group.id !== 'quest_logbook' && group.id !== 'character' && <header className="axe-service-heading">
         <div><span className="axe-service-kicker">{world ? (mode.shared ? 'Shared workstation' : 'Personal workstation') : 'Services'}</span>
           <h1>{group.label}</h1></div>
         <div className="axe-service-header-actions">
