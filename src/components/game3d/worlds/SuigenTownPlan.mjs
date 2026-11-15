@@ -1,7 +1,7 @@
-// Original, clone-only 540m x 540m town plan built around the EXISTING
+// Original, clone-only ~588m x 684m town plan built around the EXISTING
 // canal/keep precinct. Neither the owner GLB nor Classic Wolfveil is edited.
 export const SUIGEN_TOWN_BOUNDS=Object.freeze({
-  minX:-294,maxX:294,minZ:-116,maxZ:450,
+  minX:-294,maxX:294,minZ:-116,maxZ:568,
 });
 export const SUIGEN_TOWN_NAME='Dominion of Suigen — Living Town';
 export const SUIGEN_MERCHANT_CATALOG=Object.freeze([
@@ -30,6 +30,10 @@ export const SUIGEN_TOWN_PLOTS=Object.freeze(ROWS.flatMap((z,row)=>COLUMNS.map((
   const merchantId=shopByCell.get(col+':'+row)||null;
   const merchant=SUIGEN_MERCHANT_CATALOG.find(m=>m.id===merchantId)||null;
   const seed=col*103+row*37+17;
+  // Keep the real vortex-lake mountain pocket around (205,390) open. The
+  // eastern district's last two rows continue *past* that lake and the
+  // connecting scenic bypass instead of occupying its water surface.
+  const siteZ=col>=3&&row>=8?480+(row-8)*56:z;
   const width=20+(seed%5)*1.7;
   const depth=19+((row*3+col)%5)*1.45;
   return Object.freeze({
@@ -37,7 +41,7 @@ export const SUIGEN_TOWN_PLOTS=Object.freeze(ROWS.flatMap((z,row)=>COLUMNS.map((
     name:merchant?.name||`Suigen Residence ${row*6+col+1}`,
     category:merchant?.kind||'residence',
     merchantId,service:merchant?.service||null,
-    x,z,yaw:x<0?Math.PI/2:-Math.PI/2,
+    x,z:siteZ,yaw:x<0?Math.PI/2:-Math.PI/2,
     width,depth,stories:merchant?.kind==='stables'?1:((seed%7===0)?1:2),
     seed,entry:'front',enterable:true,
   });
@@ -56,10 +60,16 @@ export function suigenTownTravelPlan(){
     merchantCount:SUIGEN_TOWN_PLOTS.filter(p=>p.merchantId).length,
     roads:Object.freeze([
       {id:'western-avenue',from:[-180,-105],to:[-180,443],width:9},
-      {id:'eastern-avenue',from:[180,-105],to:[180,443],width:9},
+      {id:'eastern-avenue',from:[180,-105],to:[180,340],width:9},
+      // A safe loop around the vortex basin, with scenic pedestrian access.
+      {id:'lake-bypass-entry',from:[180,340],to:[125,340],width:8},
+      {id:'lake-bypass-trail',from:[125,340],to:[125,444],width:8},
+      {id:'lake-bypass-exit',from:[125,444],to:[180,444],width:8},
+      {id:'eastern-north-avenue',from:[180,444],to:[180,563],width:9},
       {id:'northern-promenade',from:[-290,-7],to:[290,-7],width:8},
       {id:'market-crossing',from:[-290,217],to:[290,217],width:10},
-      {id:'southern-crossing',from:[-290,385],to:[290,385],width:8},
+      {id:'southern-crossing-west',from:[-290,385],to:[-120,385],width:8},
+      {id:'southern-crossing-east',from:[-120,505],to:[290,505],width:8},
     ]),
   };
 }
