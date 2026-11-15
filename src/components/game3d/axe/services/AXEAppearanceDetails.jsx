@@ -5,14 +5,12 @@ import {
 } from '../progression/AXEVanitySystem';
 import {
   activateAXEVanityPiece, equipAXEVanityPiece, unequipAXEVanitySlot,
-  setAXEVanityHidden,
 } from '../progression/AXEVanityStore';
 import {
   equipAXECostume, unequipAXECostume, setAXECostumeHidden,
   toggleAXECostumeFavorite,
 } from '../progression/AXECostumeStore';
 import { getAXECostumeBonuses } from '../progression/AXECostumeSystem';
-import { getAXECapeBonuses } from '../progression/AXECapeSystem';
 
 const LABELS = { hp:'HP', maxHP:'HP', damage:'Attack', strength:'Strength',
   defense:'Defense', spirit:'Spirit', focus:'Focus', dexterity:'Dexterity',
@@ -69,15 +67,6 @@ export default function AXEAppearanceDetails({
   const finishEnchant = () => notify(activateAXEVanityPiece(chosenVanity.id,cardType),
     'Vanity card enchantment activated.');
 
-  const currentBonuses = {};
-  const addStats = stats => nonzeroStats(stats).forEach(([key,value]) => {
-    const id = key === 'maxHP' ? 'hp' : key === 'critDefense' ? 'criticalDefense' : key;
-    currentBonuses[id] = (currentBonuses[id] || 0) + Number(value);
-  });
-  addStats(vanity.baseBonuses?.flat);
-  addStats(vanity.baseBonuses?.attr);
-  if (costumes.equippedCostumeId) addStats(getAXECostumeBonuses(costumes.equippedCostumeId));
-  if (capes.equippedCapeId) addStats(getAXECapeBonuses(capes.equippedCapeId));
 
   return <section className="axe-app-card axe-app-unified-details" aria-label="Selected appearance details">
     {selectedItem ? <>
@@ -163,15 +152,6 @@ export default function AXEAppearanceDetails({
             Confirm Enchant</button>
           <button type="button" onClick={() => setReviewId(null)}>Cancel</button>
         </div>}
-      {tab === 'Overview' && <div className="axe-app-unified-overview">
-        <div className="axe-app-detail-heading">Equipped Appearance Attributes</div>
-        <Stats stats={currentBonuses}/>
-        <button type="button" className="axe-app-unified-visibility"
-          onClick={() => notify(setAXEVanityHidden(!vanity.hidden),
-            vanity.hidden ? 'Vanity shown.' : 'Vanity hidden.')}>
-          {vanity.hidden ? <Eye size={15}/> : <EyeOff size={15}/>}
-          {vanity.hidden ? 'Show Vanity' : 'Hide Vanity'}</button>
-      </div>}
     </> : <div className="axe-app-unified-empty">
       <Gem size={34}/><h3>Appearance Details</h3>
       <p>No owned {tab === 'Costumes' ? 'outfits' : 'pieces'} available.
