@@ -10,20 +10,24 @@ export function validateGame3DGLB(input){
      view.getUint32(8,true)!==bytes.byteLength)throw Error('Invalid glTF 2 GLB header/length');
   return bytes;
 }
-export function generateGame3DMapCode(input,{name='Game3D_Clone_Full_Map',region='wolfveil'}={}){
-  const bytes=validateGame3DGLB(input),parts=[];
-  for(let off=0;off<bytes.length;off+=PART_BYTES){
+// Build code as separate UTF-8 fragments. Full 1100m worlds can produce
+// massive GLBs; joining all base64 into one JS string exhausts memory.
+export function game3DMapCodeParts(input,{name='Game3D_Clone_Full_Map',region='wolfveil'}={}){
+  const bytes=validateGame3DGLB(input);
+  const output=[\`// Game 3D clone map — complete binary embedded as executable JavaScript.
+export const MAP_NAME=\${JSON.stringify(String(name))};
+export const MAP_REGION=\${JSON.stringify(String(region))};
+const PARTS=[
+\`];
+  for(let off=0;off<bytes.byteLength;off+=PART_BYTES){
     const slice=bytes.subarray(off,off+PART_BYTES);
     let binary='';for(let i=0;i<slice.length;i++)binary+=String.fromCharCode(slice[i]);
-    parts.push(btoa(binary));
+    output.push(JSON.stringify(btoa(binary)),',\n');
   }
-  return \`// Self-contained Game 3D clone map as pure JavaScript source.
-export const MAP_NAME=\${JSON.stringify(name)};
-export const MAP_REGION=\${JSON.stringify(region)};
-const PARTS=\${JSON.stringify(parts)};
+  output.push(\`];
 export function mapBytes(){
   const result=new Uint8Array(\${bytes.byteLength});let pos=0;
-  for(const piece of PARTS){const raw=atob(piece);
+  for(const part of PARTS){const raw=atob(part);
     for(let i=0;i<raw.length;i++)result[pos++]=raw.charCodeAt(i);
   }
   if(pos!==result.byteLength)throw Error('Incomplete Game 3D map data');
@@ -34,7 +38,14 @@ export async function loadMap(){
   const {GLTFLoader}=await import('three/examples/jsm/loaders/GLTFLoader.js');
   return (await new GLTFLoader().parseAsync(mapGLB(),'')).scene;
 }
-\`;
+\`);
+  return output;
+}
+export function generateGame3DMapCode(input,options={}){
+  return game3DMapCodeParts(input,options).join('');
+}
+export function createGame3DMapCodeBlob(input,options={}){
+  return new Blob(game3DMapCodeParts(input,options),{type:'text/javascript;charset=utf-8'});
 }
 const visibleWithin=(node,scene)=>{
   for(let parent=node;parent&&parent!==scene;parent=parent.parent)
@@ -100,12 +111,55 @@ export function snapshotGame3DMap(scene,THREE,{includeHidden=false,includeSkinne
   if(!root.children.length)throw Error('No loaded map geometry available to export');
   return {root,stats};
 }
-function downloadFile(contents,type,filename){
-  if(typeof document==='undefined')throw Error('File download requires a browser');
-  const url=URL.createObjectURL(new Blob([contents],{type}));
-  const link=document.createElement('a');link.href=url;link.download=filename;
-  document.body.appendChild(link);link.click();link.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),2000);
+// Async GLTFExporter resolution no longer has a browser user-activation token.
+// Never fire two synthetic anchor.click() calls: Chromium/Safari often suppress
+// one or both. These links are real, user-initiated individual downloads.
+export function showGame3DMapDownloads({glb,codeBlob,name,stats}){
+  if(typeof document==='undefined'||typeof URL.createObjectURL!=='function')
+    throw Error('Download links require a browser');
+  const existing=document.getElementById('game3d-map-export-downloads');
+  existing?.remove();
+  const safeName=String(name).replace(/[^a-z0-9._-]/gi,'_')||'Game3D_Map';
+  const glbURL=URL.createObjectURL(new Blob([glb],{type:'model/gltf-binary'}));
+  const codeURL=URL.createObjectURL(codeBlob);
+  const panel=document.createElement('div');
+  panel.id='game3d-map-export-downloads';
+  panel.setAttribute('role','dialog');
+  panel.setAttribute('aria-label','Game 3D full map download');
+  panel.style.cssText='position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:rgba(0,0,0,.7);font:14px system-ui,sans-serif;color:#fff';
+  const content=document.createElement('div');
+  content.style.cssText='width:min(480px,92vw);max-height:80vh;overflow:auto;padding:24px;border:1px solid #7bdde8;border-radius:16px;background:#101c29;box-shadow:0 20px 60px #000a';
+  const heading=document.createElement('h2');heading.textContent='Game 3D map export ready';
+  heading.style.cssText='font-size:18px;font-weight:700;margin:0 0 10px';
+  const description=document.createElement('p');
+  description.textContent='Choose each file separately. Browsers often block two simultaneous automatic downloads. No map geometry has been cropped to your camera view.';
+  description.style.cssText='line-height:1.5;margin:0 0 12px;color:#d8e7f4';
+  const details=document.createElement('p');
+  details.textContent='GLB '+(glb.byteLength/1048576).toFixed(1)+' MB · Source '+(codeBlob.size/1048576).toFixed(1)+' MB · '+(stats.meshes+stats.instancedMeshes)+' mesh groups';
+  details.style.cssText='font-size:12px;color:#9ab9ca';
+  const links=document.createElement('div');links.style.cssText='display:flex;flex-wrap:wrap;gap:10px;margin-top:18px';
+  const makeLink=(url,filename,label)=>{
+    const link=document.createElement('a');link.href=url;link.download=filename;
+    link.textContent=label;link.style.cssText='display:inline-block;padding:10px 14px;border-radius:10px;color:#081321;background:#94e8ef;font-weight:700;text-decoration:none';
+    return link;
+  };
+  links.append(makeLink(glbURL,safeName+'.glb','Download full GLB'),
+    makeLink(codeURL,safeName+'.mjs','Download pure code'));
+  const close=document.createElement('button');close.textContent='Close';
+  close.style.cssText='margin-top:18px;padding:8px 12px;border:1px solid #7293a4;border-radius:8px;color:#fff;background:transparent;cursor:pointer';
+  let disposed=false;
+  const teardown=()=>{
+    if(disposed)return;disposed=true;panel.remove();
+    URL.revokeObjectURL(glbURL);URL.revokeObjectURL(codeURL);
+  };
+  close.addEventListener('click',teardown);
+  panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();teardown();}});
+  panel.addEventListener('pointerdown',e=>e.stopPropagation());
+  panel.addEventListener('click',e=>e.stopPropagation());
+  content.append(heading,description,details,links,close);
+  panel.append(content);document.body.appendChild(panel);
+  close.focus();
+  return {close:teardown,glbURL,codeURL};
 }
 export async function exportGame3DFullMap({
   scene=typeof window!=='undefined'?window.__gw3dScene:null,
@@ -122,11 +176,7 @@ export async function exportGame3DFullMap({
     binary:true,onlyVisible:true,trs:true,maxTextureSize,includeCustomExtensions:true,
   });
   validateGame3DGLB(glb);
-  const code=generateGame3DMapCode(glb,{name,region});
-  if(download){
-    const filename=String(name).replace(/[^a-z0-9._-]/gi,'_')||'Game3D_Map';
-    downloadFile(glb,'model/gltf-binary',filename+'.glb');
-    downloadFile(code,'text/javascript;charset=utf-8',filename+'.mjs');
-  }
-  return {glb,code,stats,region,name,bytes:glb.byteLength};
+  const codeBlob=createGame3DMapCodeBlob(glb,{name,region});
+  const downloads=download?showGame3DMapDownloads({glb,codeBlob,name,stats}):null;
+  return {glb,codeBlob,downloads,stats,region,name,bytes:glb.byteLength};
 }
