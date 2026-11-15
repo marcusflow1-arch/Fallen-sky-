@@ -565,7 +565,8 @@ export default function GameView() {
         entryCinematic={playIntroCamera}
         initialWorkflowTarget={workflowSpawn} workflowAllowed={user?.role==='admin'} portalReturn={portalReturn}
         resumeCheckpoint={resumeCheckpoint} />
-      <Game3DPerformanceBootstrap region={worldRegion} showPanel={phase==='world'} />
+      {/* Keep GPU governor/warmup, but relocate its floating GPU/FPS button to native Graphics settings. */}
+      <Game3DPerformanceBootstrap region={worldRegion} showPanel={false} />
       {phase==='login' ? (
         <>
           <CharacterLoginScreen liveWorld worldReady={worldReady} worldError={worldEntryError}
