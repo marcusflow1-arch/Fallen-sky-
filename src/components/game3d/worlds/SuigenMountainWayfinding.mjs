@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import {createSuigenTerrainHeightSampler} from './SuigenTerrainHeight.mjs';
 
 export const SUIGEN_QUEST_POIS=Object.freeze([
   {id:'suigen-keep-council',name:'Acropolis Council',x:0,z:-105,category:'story',chapter:1},
@@ -43,7 +44,7 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
   const glyph=new THREE.MeshStandardMaterial({color:0x8fcee1,emissive:0x58a1d0,emissiveIntensity:1.1,metalness:.2,roughness:.32});
   const postMat=new THREE.MeshStandardMaterial({color:0x9c7650,roughness:.77});
   const colliders=[],treads=[],stones=[],trunks=[],crowns=[];
-  const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0);
+  const ground=createSuigenTerrainHeightSampler(terrainRoot||worldRoot);
   const terrain=[];
   (terrainRoot||worldRoot).traverse(node=>{if(node.isMesh&&node.name==='Map_Terrain_2400m')terrain.push(node);});
   terrainRoot?.updateMatrixWorld(true);
@@ -76,11 +77,6 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
       mesh.userData.suigenAbyssCarvedTriangles=carvedTriangles;
     }
   }
-  const ground=(x,z)=>{
-    ray.set(new THREE.Vector3(x,1500,z),down);
-    const hit=ray.intersectObjects(terrain,false)[0];
-    return hit?.point.y??null;
-  };
   const addCollider=(x,y,z,w,d)=>{
     const mesh=floorShape.clone();
     mesh.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),
