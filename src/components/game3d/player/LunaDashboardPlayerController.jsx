@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { blocksBowMovement, shouldBlendBowFootwork } from './BowMovementRules.mjs';
 import { PLAYER_AFK_DELAY_SECONDS } from './playerNativeAnimationClips';
 import { UPLOADED_PLAYER_ACTIONS, PLAYER_IDLE_VARIANTS, PLAYER_DEATH_ACTIONS, resolvePlayerAnimationKey } from './playerAnimationActions.mjs';
 import {GAME3D_MOBILITY_SECONDS,fitGame3DMobilityTiming} from './game3dMobilityTiming.mjs';
@@ -70,6 +71,8 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
   let previousMoving = false;
   let lastMovement = { moving: false, running: false, direction: 'forward', aiming: false };
   let isBusy = false;
+  // Only the ranged release/recoil montage may overlap real locomotion.
+  let bowAttackAllowsMovement = false;
   let isAiming = false;
   let isBlocking = false;
   let equipment = { weaponType: 'unarmed', equipped: false };
@@ -198,6 +201,7 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
 
   const resetBusy = () => {
     isBusy = false;
+    bowAttackAllowsMovement = false;
     busyResetAt = 0;
     jumpPhase=null;
     specialMoveTimer=0;
@@ -215,7 +219,19 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
     const wasRunning = lastMovement.running;
     lastMovement = { moving: !!moving, running: !!running || !!sprinting, sprinting: !!sprinting, direction, aiming: !!aiming, blocking: !!blocking };
     if (currentState === STATES.RUN_STOP && moving) { isBusy = false; busyResetAt = 0; if (oneShotRef) oneShotRef.current = false; }
-    if (isDead || isMounted || isBusy) return;
+    if (isDead || isMounted) return;
+    if (isBusy) {
+      // A bow release may keep its short recoil pose while the PLAYER ROOT
+      // still walks. After 120ms, the normal aim-walk/strafe clip resumes.
+      if (shouldBlendBowFootwork({
+        bowAttackActive: bowAttackAllowsMovement,
+        moving, elapsedSeconds: now() - lastAttackAt,
+      })) {
+        const footwork = movementStateFor({ ...lastMovement, aiming:true });
+        if (currentState !== footwork) playState(footwork, { fade:0.12 });
+      }
+      return;
+    }
     if (isIdleVariant(currentState) && !moving && !aiming && !blocking) return;
     if (moving || aiming || blocking) idleStartedAt = null;
     else if (idleStartedAt === null) idleStartedAt = now();
@@ -272,6 +288,7 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
     const config = typeof options === 'number' ? { timeScale: options } : options;
     if (isDeathState(state)) return requestDeath(state);
     if (isDead || isMounted || !hasAction(state) || (isBusy && !config.force)) return false;
+    bowAttackAllowsMovement = false;
     const speed = Math.max(0.05, Number(config.timeScale) || 1);
     if (!playState(state, { ...config, force: true, timeScale: speed, fade: config.fade ?? 0.16 })) return false;
     if (config.equipmentContext !== false && state === 'equipBow') equipment = { weaponType: 'bow', equipped: true };
@@ -296,6 +313,7 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
     const state = isDeathState(requested) ? requested : /back/i.test(kind) ? 'deathBackward' : 'deathForward';
     const available = hasAction(state) ? state : PLAYER_DEATH_ACTIONS.find(hasAction);
     isBusy = false;
+    bowAttackAllowsMovement = false;
     busyResetAt = 0;
     specialMoveTimer = 0;
     specialMoveVelocity = null;
@@ -319,6 +337,7 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
     blendTransition = null;
     isDead = false;
     isBusy = false;
+    bowAttackAllowsMovement = false;
     currentState = null;
     busyResetAt = 0;
     specialMoveTimer = 0;
@@ -349,6 +368,7 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
     // controls recovery, not an arbitrary shorter timer that cuts off Eve.
     if(!playState(state,{force:true,fade:.045,timeScale:timing.timeScale}))return false;
     isBusy = true;
+    bowAttackAllowsMovement = false;
     busyResetAt = now() + timing.duration;
     if (oneShotRef) oneShotRef.current = true;
     specialMoveVelocity = dir.multiplyScalar(speed);
@@ -375,6 +395,7 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
     jumpPhase='takeoff';
     jumpPhaseSeconds=ONE_SHOT_DURATION[STATES.JUMP_START];
     isBusy=true;
+    bowAttackAllowsMovement=false;
     busyResetAt=0;
     if(oneShotRef)oneShotRef.current=true;
     return playState(STATES.JUMP_START,{force:true,fade:.05});
@@ -403,6 +424,9 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
     const played = playState(state, { force: true, fade: 0.045, timeScale: speed });
     if (!played) return false;
     isBusy = true;
+    // A true bow release is not a stun. Melee, hit reactions, dodges and
+    // authored special attacks keep their original lock semantics.
+    bowAttackAllowsMovement = !melee && equipment.weaponType === 'bow';
     lastAttackAt = instant;
     busyResetAt = instant + durationFor(state, speed);
     if (oneShotRef) oneShotRef.current = true;
@@ -416,6 +440,7 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
     if (isBusy && !ATTACK_STATES.has(currentState)) return false;
     if (!playState(state, { force: true, fade: 0.06, timeScale: 1.05 })) return false;
     isBusy = true;
+    bowAttackAllowsMovement = false;
     busyResetAt = now() + durationFor(state, 1.05);
     if (oneShotRef) oneShotRef.current = true;
     return true;
@@ -513,6 +538,7 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
     blendTransition = null;
     currentState = null;
     isBusy = false;
+    bowAttackAllowsMovement = false;
     busyResetAt = 0;
     jumpOffset = 0;
     jumpVelocity = 0;
@@ -574,8 +600,8 @@ export function createLunaDashboardPlayerController({ mixer, oneShotRef }) {
     getIsBlocking: () => isBlocking,
     getIsCrouching: () => false,
     getJumpOffset:()=>jumpOffset,
-    isMovementOverridden: () => isBusy || isDead,
+    isMovementOverridden: () => blocksBowMovement({busy:isBusy,dead:isDead,bowAttackActive:bowAttackAllowsMovement}),
     has: hasAction,
-    getDebugState: () => ({ currentState, ...lastMovement, isBusy, isAiming, isBlocking, equipment: { ...equipment }, isMounted, isDead, specialMoveTimer,jumpPhase,jumpOffset }),
+    getDebugState: () => ({ currentState, ...lastMovement, isBusy, bowAttackAllowsMovement, isAiming, isBlocking, equipment: { ...equipment }, isMounted, isDead, specialMoveTimer,jumpPhase,jumpOffset }),
   };
 }
