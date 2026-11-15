@@ -234,7 +234,7 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
     if (!companion && skill.skill_type === SKILL_TYPE.PASSIVE) {
       const slot = passiveIds.indexOf(null);
       if (slot !== -1) placePassive(slot,skill);
-      else setStatus('No empty passive slots. Select an occupied passive slot to replace it.');
+      else setStatus('No empty passive slots. In Buffs, remove an equipped passive chip to make space.');
       return;
     }
     const slot = activeIds.indexOf(null);
@@ -333,6 +333,13 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
             <div className="axe-skill-book-page-title"><Sparkles size={17}/><h2>{view==='skills'?'Skill Details':view==='advance'?'Skill Mastery':(companion?'Support & Abilities':'Buffs & Passives')}</h2></div>
             {view==='buffs' && <FilterBar options={companion?COMPANION_LEFT:LEFT_FILTERS} value={leftFilter}
               onChange={x=>{setLeftFilter(x);setSelected(null);}} />}
+            {view==='buffs'&&!companion&&passiveIds.some(Boolean)&&
+              <nav className="axe-book-passive-chips" aria-label="Equipped passive skills">
+                {passiveIds.map((id,i)=>id&&<button key={i} type="button"
+                  title={'Remove '+skillLabel(getSkillById(id))}
+                  onClick={()=>removePassive(i)}>
+                  {skillLabel(getSkillById(id))}<X size={11}/></button>)}
+              </nav>}
             <div className="axe-skill-book-page-content">
               {view==='skills' ? <AXESkillMasteryDetail skill={currentSkill} companion={companion}/>
                 : <SkillGrid side="left" filter={view==='advance'?'advance':leftFilter} isCompanion={companion}
