@@ -1,0 +1,144 @@
+/* Mini Games follows Chronicle's small HUD launcher and liquid-glass styling.
+   No changes to the upper-left portrait ring or the main world. */
+.game3d-view .axe-minigames-launch{
+  position:fixed;z-index:58;pointer-events:auto;
+  left:clamp(231px,17vw,259px);top:clamp(112px,15vh,142px);
+  width:42px;height:42px;display:grid;place-items:center;
+  background:linear-gradient(140deg,rgba(18,53,68,.94),rgba(7,21,38,.94));
+  border:1px solid rgba(130,209,240,.54);
+  box-shadow:inset 0 1px rgba(220,249,255,.17),0 5px 20px rgba(0,6,20,.65);
+  color:#b7effe;border-radius:11px;
+  transform:scale(var(--game3d-community-scale,1));
+  transform-origin:left top;
+  cursor:pointer;backdrop-filter:blur(14px);
+}
+.game3d-view .axe-minigames-launch:hover,
+.game3d-view .axe-minigames-launch:focus-visible{
+  border-color:#e7faff;outline:2px solid rgba(104,209,250,.5);outline-offset:2px;
+}
+.axe-minigames-backdrop{
+  position:fixed;inset:0;z-index:130;pointer-events:auto;
+  background:rgba(1,7,17,.78);backdrop-filter:blur(10px);
+  display:grid;place-items:center;padding:clamp(6px,1.6vw,24px);
+}
+.axe-minigames-panel{
+  width:min(1220px,100%);height:min(850px,96vh);min-height:0;
+  display:flex;flex-direction:column;overflow:hidden;
+  border:1px solid rgba(154,219,246,.47);border-radius:17px;
+  background:linear-gradient(140deg,#11273a 0%,#071827 49%,#081729 100%);
+  box-shadow:0 24px 95px rgba(0,0,0,.8),inset 0 1px rgba(215,249,255,.13);
+  color:#e7f6fe;font:13px/1.45 system-ui,'Segoe UI',sans-serif;
+}
+.axe-minigames-panel button{font:inherit;cursor:pointer;color:inherit}
+.axe-minigames-panel button:disabled{opacity:.45;cursor:not-allowed}
+.axe-minigames-header,.axe-minigames-footer{
+  flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:17px 22px;border-bottom:1px solid rgba(167,221,244,.16);
+}
+.axe-minigames-header{background:linear-gradient(90deg,rgba(34,76,95,.4),transparent)}
+.axe-minigames-title{display:flex;align-items:center;gap:13px}
+.axe-minigames-emblem{
+  width:46px;height:46px;display:grid;place-items:center;border-radius:13px;
+  background:rgba(53,158,207,.12);color:#b3eafa;border:1px solid rgba(129,201,241,.4)
+}
+.axe-minigames-title small,.axe-minigames-detail-head small,.axe-minigames-eyebrow{
+  font-size:10px;letter-spacing:.19em;color:#96d7ed;font-weight:700
+}
+.axe-minigames-title h2{margin:2px 0 0;font:700 25px/1.2 Georgia,serif}
+.axe-minigames-title p,.axe-minigames-detail-head p{
+  margin:4px 0 0;color:#a9c5d6;font-size:12px;
+}
+.axe-minigames-close,.axe-minigames-detail-head>button{
+  display:grid;place-items:center;flex:none;width:35px;height:35px;border-radius:10px;
+  border:1px solid rgba(154,219,246,.23);background:rgba(154,219,246,.07)
+}
+.axe-minigames-body{flex:1;display:grid;grid-template-columns:245px minmax(0,1fr);min-height:0}
+.axe-minigames-catalog{
+  min-height:0;overflow-y:auto;padding:17px 12px;border-right:1px solid rgba(145,205,226,.13);
+}
+.axe-minigames-eyebrow{padding:4px 10px 12px}
+.axe-minigame-option{
+  width:100%;display:flex;align-items:center;text-align:left;gap:10px;
+  padding:10px;border:1px solid transparent;border-radius:11px;
+  background:transparent;transition:background .15s,border-color .15s
+}
+.axe-minigame-option:hover,.axe-minigame-option:focus-visible{
+  background:rgba(130,217,247,.08);border-color:rgba(128,197,234,.25)
+}
+.axe-minigame-option.is-selected{
+  background:linear-gradient(100deg,rgba(52,149,196,.24),rgba(46,90,132,.12));
+  border-color:rgba(109,213,248,.55);
+}
+.axe-minigame-emoji{width:31px;height:31px;display:grid;place-items:center;font-size:21px}
+.axe-minigame-option>span:nth-child(2){min-width:0;display:flex;flex-direction:column;gap:2px}
+.axe-minigame-option strong{font-size:13px}
+.axe-minigame-option small{color:#95b9ca;font-size:10px}
+.axe-minigame-option i{width:6px;height:6px;margin-left:auto;border-radius:50%;background:#6ee7ce}
+.axe-minigames-detail{padding:19px 22px 24px;min-height:0;overflow-y:auto}
+.axe-minigames-detail-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.axe-minigames-detail-head h3{margin:3px 0;font:700 25px/1.3 Georgia,serif}
+.axe-minigames-arena{
+  position:relative;overflow:hidden;border-radius:12px;
+  background:#071724;border:1px solid rgba(155,222,245,.19)
+}
+.axe-minigame-arena-preview{min-height:225px;height:clamp(195px,30vh,280px);position:relative}
+.axe-minigame-arena-preview canvas{display:block;width:100%;height:100%}
+.axe-minigame-arena-error{position:absolute;inset:0;display:grid;place-items:center;padding:20px;color:#afc3ce}
+.axe-minigames-arena-caption{
+  position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:7px;
+  background:linear-gradient(0deg,rgba(2,13,24,.9),rgba(2,13,24,.05));
+  padding:15px 12px 9px;color:#b8dce6;font-size:11px;pointer-events:none
+}
+.axe-minigames-queue-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:19px 0 12px}
+.axe-minigames-queue-head h4{margin:0;font:700 17px Georgia,serif}
+.axe-minigames-queue-head small{color:#91b1c5;font-size:11px}
+.axe-minigames-create{
+  display:inline-flex;align-items:center;gap:7px;white-space:nowrap;
+  background:linear-gradient(110deg,#b8eef5,#7cd6ed)!important;
+  border-radius:9px;padding:8px 12px;color:#061c2c!important;font-weight:700!important
+}
+.axe-minigames-notice{margin:8px 0;padding:9px 11px;border:1px solid rgba(106,208,232,.28);border-radius:9px;
+  background:rgba(33,112,151,.12);color:#c5edfb;font-size:12px}
+.axe-minigames-event-list{display:flex;flex-direction:column;gap:9px}
+.axe-minigames-empty{padding:20px;margin:0;border:1px dashed rgba(138,207,240,.28);
+  border-radius:11px;color:#a4bac9;text-align:center}
+.axe-minigames-event{
+  display:flex;gap:12px;align-items:center;justify-content:space-between;
+  border:1px solid rgba(136,212,245,.2);border-radius:11px;padding:13px;
+  background:rgba(79,145,192,.07)
+}
+.axe-minigames-event-info{min-width:0}
+.axe-minigames-event-info strong{font-size:13px}
+.axe-minigames-event-info>div{display:flex;gap:6px;align-items:center;margin-top:5px;color:#b2cddd;font-size:11px}
+.axe-minigames-event-info .axe-minigames-event-meta{color:#92d8ea}
+.axe-minigames-event-actions{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end}
+.axe-minigames-event-actions button{
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+  padding:7px 10px;border:1px solid rgba(140,209,237,.34);border-radius:8px;
+  background:rgba(44,114,154,.18);font-size:11px
+}
+.axe-minigames-event-actions .axe-minigames-cancel{border-color:rgba(230,132,138,.35);color:#f7b6b6}
+.axe-minigames-footer{
+  border-top:1px solid rgba(167,221,244,.16);border-bottom:0;
+  padding:12px 20px;color:#93b4c6;font-size:10px
+}
+.axe-minigames-footer span:last-child{white-space:nowrap;color:#b9e6f5}
+@media(max-width:760px){
+  .game3d-view .axe-minigames-launch{left:201px;top:116px;width:36px;height:36px}
+  .axe-minigames-body{grid-template-columns:1fr;display:flex;flex-direction:column}
+  .axe-minigames-catalog{flex:none;display:flex;overflow-x:auto;overflow-y:hidden;gap:5px;
+    padding:7px;border-right:0;border-bottom:1px solid rgba(145,205,226,.15)}
+  .axe-minigames-eyebrow{display:none}
+  .axe-minigame-option{width:max-content;flex:none;padding:7px}
+  .axe-minigame-option small{display:none}
+  .axe-minigames-title p{display:none}
+  .axe-minigames-header{padding:11px}
+  .axe-minigames-detail{padding:12px}
+  .axe-minigames-event{flex-direction:column;align-items:stretch}
+  .axe-minigames-event-actions{justify-content:flex-start}
+  .axe-minigames-footer{padding:8px 12px}
+  .axe-minigames-footer span:last-child{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .axe-minigame-option{transition:none}
+}
