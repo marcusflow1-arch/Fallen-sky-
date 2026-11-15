@@ -122,10 +122,18 @@ export function useArmoredAppearance(appearance, characterId) {
       });
     return () => { alive = false; };
   }, [body?.id,equippedPieceIds]);
-  const resolved = useMemo(
-    () => reconcileInventoryArmorOverrides(equipped, inventoryWorn, PACK_SET_IDS),
-    [equipped, inventoryWorn],
-  );
+  const resolved = useMemo(() => {
+    // Some old creator saves still contain a fitted armor pick even after the
+    // actual equipment instance was unequipped. Reconcile both sources of
+    // saved cosmetics against the canonical per-character inventory, not
+    // merely the bridge's legacy override map.
+    const creatorSelected = Object.fromEntries(ARMOR_SLOTS
+      .filter(slot=>appearance?.selected_assets?.[slot])
+      .map(slot=>[slot,appearance.selected_assets[slot]]));
+    return reconcileInventoryArmorOverrides(
+      {...creatorSelected,...equipped},inventoryWorn,PACK_SET_IDS,
+    );
+  },[appearance?.selected_assets,equipped,inventoryWorn]);
   return useMemo(() => {
     const result=withEquippedArmor(appearance,resolved,pieces);
     // The inventory owns the equipment. If a GLB was never authored for a
