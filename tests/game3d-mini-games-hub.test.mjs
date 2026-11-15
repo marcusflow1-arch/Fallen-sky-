@@ -48,7 +48,11 @@ test('HUD launcher opens a modal, suppresses controls and has all lobby actions'
   const page=read('src/pages/GameView.jsx');
   const hub=read('src/components/game3d/minigames/MiniGamesHub.jsx');
   const style=read('src/components/game3d/minigames/MiniGamesHub.css');
-  assert.match(page,/MiniGamesHub userId=\{user\?\.id\}/);
+  assert.match(page,/MiniGamesHub userId=\\{user\\?\\.id\\} showLauncher=\\{communityHUD\\.miniGames\\}/);
+  const settings=read('src/components/game3d/hud/game3dCommunityHUDSettings.mjs');
+  const pause=read('src/components/game3d/PauseMenu.jsx');
+  assert.match(settings,/miniGames: true/);
+  assert.match(pause,/label="Mini Games events button"/);
   assert.match(page,/ChronicleBlueprintLibrary/);
   assert.match(hub,/className="axe-minigames-launch"/);
   assert.match(hub,/role="dialog" aria-modal="true"/);
