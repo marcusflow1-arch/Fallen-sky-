@@ -59,7 +59,7 @@ export function suigenTownTravelPlan(){
     enterableCount:SUIGEN_TOWN_PLOTS.filter(p=>p.enterable).length,
     merchantCount:SUIGEN_TOWN_PLOTS.filter(p=>p.merchantId).length,
     roads:Object.freeze([
-      {id:'western-avenue',from:[-180,-105],to:[-180,443],width:9},
+      {id:'western-avenue',from:[-180,-105],to:[-180,563],width:9},
       {id:'eastern-avenue',from:[180,-105],to:[180,340],width:9},
       // A safe loop around the vortex basin, with scenic pedestrian access.
       {id:'lake-bypass-entry',from:[180,340],to:[125,340],width:8},
@@ -68,8 +68,7 @@ export function suigenTownTravelPlan(){
       {id:'eastern-north-avenue',from:[180,444],to:[180,563],width:9},
       {id:'northern-promenade',from:[-290,-7],to:[290,-7],width:8},
       {id:'market-crossing',from:[-290,217],to:[290,217],width:10},
-      {id:'southern-crossing-west',from:[-290,385],to:[-120,385],width:8},
-      {id:'southern-crossing-east',from:[-120,505],to:[290,505],width:8},
+      {id:'southern-crossing',from:[-290,505],to:[290,505],width:8},
     ]),
   };
 }
