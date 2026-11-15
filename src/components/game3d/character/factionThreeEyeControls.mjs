@@ -9,8 +9,10 @@ const normalized = value => String(value||'').replace(/[^a-z0-9]/gi,'').toLowerC
 const eyeSide = name => {
   const n=normalized(name);
   if(/lid|brow|lash/.test(n))return null;
-  if(/^(eyeleft|lefteye|eyel|leyeball|eyeballl|lefteyeball)$/.test(n))return 'L';
-  if(/^(eyeright|righteye|eyer|reyeball|eyeballr|righteyeball)$/.test(n))return 'R';
+  if(/^(eyeleft|lefteye|eyel|leyeball|eyeballl|lefteyeball)$/.test(n)
+      ||n.endsWith('icosphereeyel'))return 'L';
+  if(/^(eyeright|righteye|eyer|reyeball|eyeballr|righteyeball)$/.test(n)
+      ||n.endsWith('icosphereeyer'))return 'R';
   return null;
 };
 const blinkKey = name => /blink|eyelidclose|eyeclose|eyeshut|closedeye/i
@@ -30,12 +32,16 @@ const empty = reason => ({
 export function createFactionThreeEyeControls(root,definition={}) {
   if(!root||!isFactionThreeMount(definition))return empty('other-mount');
   let head=null;
-  const eyes=new Map(),morphs=[];
+  const eyes=new Map(),eyeMeshes=new Map(),morphs=[];
   root.traverse(node=>{
     if(node.isBone) {
       if(normalized(node.name)==='head')head=node;
       const side=eyeSide(node.name);
       if(side&&!eyes.has(side))eyes.set(side,node);
+    }
+    if(node.isMesh&&!node.isSkinnedMesh){
+      const side=eyeSide(node.name);
+      if(side&&!eyeMeshes.has(side))eyeMeshes.set(side,node);
     }
     if(!node.isMesh||!node.morphTargetDictionary||
         !Array.isArray(node.morphTargetInfluences))return;
@@ -47,21 +53,22 @@ export function createFactionThreeEyeControls(root,definition={}) {
   });
   if(!head && eyes.size===0)return empty('no-head-or-eye-bones');
   const controls=[],rest=[];
-  // Keep both hidden controllers on the mount's head/eye armature. These may
-  // be used by an artist to locate blink/gaze controls later; rendering is
-  // intentionally off so existing eyeballs remain unchanged.
+  root.updateWorldMatrix(true,true);
+  // Never guess where the eyes are: only create control Icospheres where a
+  // genuine eye joint or individually named unskinned eye mesh exists.
   for(const side of ['L','R']) {
-    const bone=eyes.get(side),parent=bone||head;
+    const bone=eyes.get(side),mesh=eyeMeshes.get(side);
+    const parent=bone||mesh||null;
     if(!parent)continue;
     const marker=new THREE.Mesh(new THREE.IcosahedronGeometry(.006,0),
       new THREE.MeshBasicMaterial({visible:false,depthWrite:false}));
     marker.name='FactionThreeEyeIcosphere_'+side;
     marker.visible=false;
     marker.userData.factionThreeEyeControl=true;
-    marker.position.set(0,0,0);
-    parent.add(marker);
+    parent.add(marker); // armature-owned if bone; mesh-owned if unskinned eye
     controls.push(marker);
     if(bone)rest.push({bone,quaternion:bone.quaternion.clone()});
+    else if(mesh)rest.push({bone:mesh,quaternion:mesh.quaternion.clone()});
   }
   let elapsed=0,disposed=false;
   const axisY=new THREE.Vector3(0,1,0),axisX=new THREE.Vector3(1,0,0);
@@ -91,7 +98,9 @@ export function createFactionThreeEyeControls(root,definition={}) {
         node.morphTargetInfluences[index]=Math.max(baseline,blink);
     },
     status:()=>({active:!disposed,controls:controls.length,
-      gazeBones:rest.length,blinkChannels:morphs.length,
+      gazeBones:rest.filter(({bone})=>bone.isBone).length,
+      gazeMeshes:rest.filter(({bone})=>!bone.isBone).length,
+      blinkChannels:morphs.length,
       // No eyelid morph: eye remains untouched rather than being squashed.
       blinkSupported:morphs.length>0}),
     dispose(){
