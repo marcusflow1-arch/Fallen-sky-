@@ -66,7 +66,7 @@ test('scrollbar on duplicate vertical equip column is removed, actual skill grid
 });
 test('all non-Blacksmith Services reduce top footprint 10%, Companion fills width',()=>{
   assert.deepEqual(AXE_SERVICE_GROUPS.map(group=>group.id),[
-    'blacksmith','character','skills','quest_logbook','appearance','companion','spiritual']);
+    'blacksmith','character','skills','quest_logbook','companion','spiritual']);
   const css=source('AXEServiceWorkspace.css');
   assert.match(css,/\[data-service-extent="viewport-top"\]:not\(\.axe-service-workspace--blacksmith\)\s*\{\s*top:clamp\(62px,10dvh,110px\)!important;/);
   assert.match(css,/\.axe-service-workspace--companion\s*\{\s*left:0!important;right:0!important;/);
