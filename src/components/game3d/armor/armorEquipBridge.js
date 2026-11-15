@@ -13,7 +13,7 @@ import { ARMOR_SLOTS, creatorBody } from '@/components/onboarding/avatarCustomiz
 import { loadBuiltinLayers } from '@/components/onboarding/creatorBuiltinLayers';
 import { getActiveCharacter } from '../characterStore';
 import { getEquippedAXEItems, subscribeAXEEquipmentInventory } from '../axe/equipment/AXEEquipmentInventoryStore';
-import { equippedAXEArmorPieces } from '../axe/equipment/AXEArmorPackCatalog';
+import { equippedAXEArmorPieces, AXE_ARMOR_PACK_SETS, AXE_DEV_ARMOR_SETS } from '../axe/equipment/AXEArmorPackCatalog';
 import {
   armorSlotOf as slotOf,
   withEquippedArmor as mergeArmor,
@@ -27,6 +27,7 @@ export const ARMOR_SYNC_REQUEST_EVENT = 'game3d:armor-sync-request';
 let syncRequested = false;
 const STORAGE_KEY = 'axe.game3d.armor.v1';
 const EMPTY = Object.freeze({});
+const PACK_SET_IDS = [...AXE_ARMOR_PACK_SETS, ...AXE_DEV_ARMOR_SETS].map(set => set.id);
 const listeners = new Set();
 
 function readStore() {
@@ -107,7 +108,7 @@ export function useArmoredAppearance(appearance, characterId) {
     return () => { alive = false; };
   }, [body?.id]);
   const resolved = useMemo(
-    () => reconcileInventoryArmorOverrides(equipped, inventoryWorn),
+    () => reconcileInventoryArmorOverrides(equipped, inventoryWorn, PACK_SET_IDS),
     [equipped, inventoryWorn],
   );
   return useMemo(() => withEquippedArmor(appearance, resolved, pieces), [appearance, resolved, pieces]);
