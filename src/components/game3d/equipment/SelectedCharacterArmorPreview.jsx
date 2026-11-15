@@ -32,6 +32,7 @@ export default function SelectedCharacterArmorPreview({ character, ...stageProps
   const [equipped, setEquipped] = useState(() => readSelectedCharacterArmor(character?.id));
   const [assets, setAssets] = useState([]);
   const body = creatorBody(character);
+  const equippedPieceIds = Object.values(equipped).filter(Boolean).sort().join('|');
   useEffect(() => {
     const update = () => setEquipped(readSelectedCharacterArmor(character?.id));
     update();
@@ -46,13 +47,13 @@ export default function SelectedCharacterArmorPreview({ character, ...stageProps
   useEffect(() => {
     if (!body) { setAssets([]); return undefined; }
     let live = true;
-    loadBuiltinLayers('armor')
+    loadBuiltinLayers('armor',{equippedIds:equippedPieceIds.split('|').filter(Boolean)})
       .then(manifest => {
         if (live) setAssets((manifest[body.gender] || []).filter(asset => asset.rig_id === body.rig_id));
       })
       .catch(() => { if (live) setAssets([]); });
     return () => { live = false; };
-  }, [body?.id]);
+  }, [body?.id,equippedPieceIds]);
 
   const config = useMemo(() => {
     if (!body) return character;
