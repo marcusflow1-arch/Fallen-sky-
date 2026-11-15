@@ -1514,6 +1514,12 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       model = fbx;
       modelRef.current = fbx;
       playerModelRef.current = fbx;
+      // Model loading is asynchronous. Armor can be equipped/removed while the
+      // GLB is still pending; the React appearance effect may already have run
+      // when modelRef was null. Reapply the latest inventory-resolved appearance
+      // BEFORE this model is drawn for the first time, so the live character
+      // takes priority over Character and Appearance 3D previews.
+      void applyPlayerAppearance(fbx,appearanceRef.current);
       window.__gw3dPlayerHeight=1.7*(appearanceRef.current.height_scale||1);
       // A chosen workflow location replaces only this character's initial Play spawn.
       // The real terrain raycast and existing tree/building/river guard reject unsafe spots.
