@@ -8,7 +8,7 @@ import './MiniGamesHub.css';
 // Opt-in social lobby and procedural arena preview, NOT a live match engine.
 // Only the authenticated backend can create an RSVP/advertised event.
 // No fake opponents, local-only multiplayer counts, wins, or rewards.
-export default function MiniGamesHub({userId,suppressed=false}){
+export default function MiniGamesHub({userId,suppressed=false,showLauncher=true}){
   const [open,setOpen]=useState(false);
   const [gameId,setGameId]=useState('basketball');
   const [events,setEvents]=useState([]);
@@ -75,7 +75,7 @@ export default function MiniGamesHub({userId,suppressed=false}){
   };
   if(!userId)return null;
   return <>
-    {!suppressed&&<button className="axe-minigames-launch" type="button"
+    {!suppressed&&showLauncher&&<button className="axe-minigames-launch" type="button"
       onClick={()=>setOpen(true)} title="Mini Games · sports, board games and player events"
       aria-label="Open Mini Games events" aria-expanded={open}>
       <Trophy size={20}/><span className="sr-only">Mini Games</span>
