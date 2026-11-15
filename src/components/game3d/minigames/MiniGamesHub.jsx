@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useMemo,useState} from 'react';
+import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {Trophy,X,Users,Eye,Plus,RefreshCcw,CalendarDays,ShieldCheck} from 'lucide-react';
 import {MINI_GAMES,miniGameById} from '../../../../base44/shared/game3dMiniGameCatalog.mjs';
 import {callGameServer} from '../social/socialServer';
@@ -10,6 +10,7 @@ import './MiniGamesHub.css';
 // No fake opponents, local-only multiplayer counts, wins, or rewards.
 export default function MiniGamesHub({userId,suppressed=false,showLauncher=true}){
   const [open,setOpen]=useState(false);
+  const dialogRef=useRef(null);
   const [gameId,setGameId]=useState('basketball');
   const [events,setEvents]=useState([]);
   const [busy,setBusy]=useState('');
@@ -36,7 +37,21 @@ export default function MiniGamesHub({userId,suppressed=false,showLauncher=true}
     window.__axeUiModalOpen=true;
     window.__axeMiniGamesOpen=true;
     document.exitPointerLock?.();
+    dialogRef.current?.querySelector('button[aria-label="Close Mini Games"]')?.focus();
     const esc=event=>{
+      if(event.key==='Tab'){
+        const focusables=[...(dialogRef.current?.querySelectorAll(
+          'button:not(:disabled),[href],input:not(:disabled),[tabindex]:not([tabindex="-1"])')||[])];
+        if(focusables.length){
+          const first=focusables[0],last=focusables[focusables.length-1];
+          if(event.shiftKey&&document.activeElement===first){
+            event.preventDefault();last.focus();
+          }else if(!event.shiftKey&&document.activeElement===last){
+            event.preventDefault();first.focus();
+          }
+        }
+        return;
+      }
       if(event.key!=='Escape')return;
       event.preventDefault();event.stopImmediatePropagation?.();
       setOpen(false);
@@ -83,7 +98,7 @@ export default function MiniGamesHub({userId,suppressed=false,showLauncher=true}
     {open&&!suppressed&&<div className="axe-minigames-backdrop" onMouseDown={event=>{
       if(event.target===event.currentTarget)setOpen(false);
     }}>
-      <section className="axe-minigames-panel" role="dialog" aria-modal="true"
+      <section ref={dialogRef} className="axe-minigames-panel" role="dialog" aria-modal="true"
         aria-labelledby="axe-minigames-title">
         <header className="axe-minigames-header">
           <div className="axe-minigames-title">
@@ -154,7 +169,7 @@ export default function MiniGamesHub({userId,suppressed=false,showLauncher=true}
                     <button type="button" disabled={!!busy||event.players>=event.maxPlayers}
                       onClick={()=>void run('rsvp',{eventId:event.id,role:'player'})}>Join</button>
                     <button type="button" disabled={!!busy} onClick={()=>void run('rsvp',{eventId:event.id,role:'spectator'})}>
-                      <Eye size={14}/> Spectate
+                      <Eye size={14}/> Spectator RSVP
                     </button>
                   </>}
                   {event.hostId===userId&&<button type="button" disabled={!!busy}
