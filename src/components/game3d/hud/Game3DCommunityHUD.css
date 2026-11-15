@@ -1,0 +1,75 @@
+/* Clone HUD cleanup: position controls without moving the actual portrait ring,
+   HP/Will bars, quest trail, server state or other gameplay widgets. */
+.game3d-view { --game3d-community-scale: 1; }
+.game3d-view .game3d-world-chat {
+  left:clamp(12px,1.7vw,28px);
+  bottom:clamp(110px,15vh,158px);
+  right:auto;top:auto;
+  width:clamp(202px,19vw,276px);
+  max-width:min(276px,calc(100vw - 28px));
+  transform:scale(var(--game3d-community-scale,1));
+  transform-origin:left bottom;
+}
+.game3d-view .game3d-world-chat .game3d-chat-messages {
+  max-height:min(84px,14vh);
+}
+/* Portrait ring stays exactly where JadeSoulHUD already placed it. */
+.game3d-view .axe-echo-launch {
+  left:clamp(135px,10.3vw,163px);
+  top:clamp(112px,15vh,142px);
+  right:auto;bottom:auto;
+  width:42px;height:42px;min-width:42px;max-width:42px;
+  padding:4px;gap:0;justify-content:center;
+  border-radius:11px;
+  transform:scale(var(--game3d-community-scale,1));
+  transform-origin:left top;
+}
+.game3d-view .axe-echo-launch .axe-echo-launch-glyph{
+  width:31px;height:31px;flex:none;border-radius:8px;
+}
+.game3d-view .axe-echo-launch > span:last-child:not(.axe-echo-launch-glyph) {
+  position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);
+}
+/* Creator Chronicle Library is another small icon; full editor opens unchanged. */
+.game3d-view .axe-chronicle-vault-launch {
+  left:clamp(183px,13.7vw,211px);
+  top:clamp(112px,15vh,142px);
+  right:auto;bottom:auto;
+  width:42px;height:42px;min-width:42px;max-width:42px;
+  padding:4px;gap:0;justify-content:center;
+  border-radius:11px;
+  transform:scale(var(--game3d-community-scale,1));
+  transform-origin:left top;
+}
+.game3d-view .axe-chronicle-vault-launch-icon {
+  width:30px;height:30px;flex:none;
+}
+.game3d-view .axe-chronicle-vault-launch > span:last-child:not(.axe-chronicle-vault-launch-icon) {
+  position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);
+}
+/* Online count lives ABOVE the portrait circle (not above the compass).
+   The portrait itself is not moved, hidden or resized. */
+.game3d-view .game3d-online-pill {
+  position:fixed;top:clamp(4px,1vh,12px);left:clamp(14px,1.9vw,26px);
+  right:auto;bottom:auto;min-width:100px;max-width:138px;
+  justify-content:center;gap:5px;
+  transform:scale(var(--game3d-community-scale,1));
+  transform-origin:left top;
+  background:rgba(8,22,36,.80)!important;
+  border:1px solid rgba(120,194,231,.38)!important;
+  pointer-events:none;
+}
+/* Do not allow compact dock overlays to cover mobile navigation and HUD. */
+@media(max-width:760px){
+  .game3d-view .game3d-world-chat{
+    left:8px;bottom:173px;width:min(212px,57vw);max-height:27vh;
+  }
+  .game3d-view .game3d-world-chat .game3d-chat-messages{max-height:64px;}
+  .game3d-view .axe-echo-launch{left:115px;top:116px;width:36px;height:36px;min-width:36px;max-width:36px;}
+  .game3d-view .axe-chronicle-vault-launch{left:158px;top:116px;width:36px;height:36px;min-width:36px;max-width:36px;}
+  .game3d-view .game3d-online-pill{left:8px;top:4px;min-width:92px;}
+}
+@media(max-height:550px){
+  .game3d-view .game3d-world-chat{bottom:126px;}
+  .game3d-view .game3d-world-chat .game3d-chat-messages{max-height:48px;}
+}
