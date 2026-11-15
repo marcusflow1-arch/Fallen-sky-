@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { evaluateGame3DNodeTap847 } from '../privatePgTapSummary847.mjs';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const PRS = Object.freeze({
   '794': {
@@ -96,6 +97,18 @@ const MAIN_SUITES = Object.freeze([...new Set([
   // Require it in the native main gate; never silently skip merged security tests.
   'combat873.post-input-lease.test.mjs',
 ])]);
+// Preserve historical original-repository PR modes, but allow safe main-only
+// source verification in the Game 3D clone. PR numbers are repo-specific.
+export function verifyCombatQuestNativeRepositoryTarget(origin, mode) {
+  if (typeof origin !== 'string' || typeof mode !== 'string')
+    return { ok: false, reason: 'unsupported_origin' };
+  const match = /^(?:https:\/\/(?:[^/@]+@)?github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)marcusflow1-arch\/(atom-x-eve-os|gitsync-pro)(?:\.git)?\/?$/.exec(origin.trim());
+  if (!match) return { ok: false, reason: 'unsupported_origin' };
+  if (match[1] === 'gitsync-pro' && mode !== 'main')
+    return { ok: false, reason: 'clone_requires_main' };
+  return { ok: true, repository: match[1] };
+}
+
 const MAX_OUTPUT = 12 * 1024 * 1024;
 const TEST_TIMEOUT_MS = 120_000;
 const supportedNode = Number(process.versions.node.split('.')[0]) >= 22;
@@ -348,8 +361,11 @@ function main() {
   const currentRoot = resolve(root.stdout.trim());
   // Read the configured URL, not `git remote get-url` after insteadOf rewrites.
   const remotes = required(exec('git', ['config', '--get', 'remote.origin.url'], { cwd: currentRoot }), 'origin remote');
-  if (!/(?:github\.com[:/])marcusflow1-arch\/atom-x-eve-os(?:\.git)?\/?$/.test(remotes)) {
-    process.stderr.write('Refusing to fetch: origin is not the expected Atom X Eve GitHub repository.\n');
+  const target = verifyCombatQuestNativeRepositoryTarget(remotes, args.pr);
+  if (!target.ok) {
+    process.stderr.write(target.reason === 'clone_requires_main'
+      ? 'Game 3D clone supports --pr main only; historical PR IDs belong to the original repository.\n'
+      : 'Refusing to verify: origin is not an approved Atom X Eve or Game 3D clone repository.\n');
     return 2;
   }
   const folder = args.output ? resolve(args.output) : mkdtempSync(join(tmpdir(), 'axe-native-ci-evidence-'));
@@ -380,4 +396,6 @@ function main() {
       suites: r.cases?.map(c => ({ suite: c.suite, status: c.status, passed: c.passed, tests: c.tests })) })) }, null, 2)}\n`);
   return ['native_source_tests_passed', 'native_source_overlay_verified'].includes(summary.status) ? 0 : 1;
 }
-process.exitCode = main();
+// Importing this module from a unit test must not start the CLI.
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href)
+  process.exitCode = main();
