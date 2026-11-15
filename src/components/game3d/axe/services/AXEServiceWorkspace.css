@@ -170,3 +170,53 @@
 .axe-service-workspace button:focus-visible {
   outline-color:#ffe4aa;
 }
+
+
+/*
+ * CLONE · Services full-height viewport expansion (2026-11-14).
+ *
+ * All seven navigation destinations mount the SAME AXEServiceWorkspace
+ * section: Blacksmith, Character, Skill Book, Quest Logbook, Appearance,
+ * Companion and Spiritual. The live screenshot shows their old top edge
+ * below the navigation buttons, leaving a large wasted band above the panel.
+ *
+ * The requested change is vertical ONLY: place the workspace at the very top
+ * of the in-game view. Do not move, resize or restyle the service buttons.
+ * The navigation may intentionally overlap the newly expanded workspace;
+ * its layering/navigation redesign is a separate owner decision.
+ *
+ * Individual lazily loaded service CSS modules currently set `top` or the
+ * `inset` shorthand using the measured navigation-bottom variable, including
+ * small viewport media rules. This targeted important top longhand wins those
+ * declarations regardless of injection order, while preserving each service's
+ * authored left/right/bottom insets, width, footer, scroll panes and artwork.
+ */
+.game3d-view .axe-service-workspace[data-service-extent="viewport-top"] {
+  top: 0 !important;
+  min-height: 0;
+  max-height: none;
+}
+
+/* Blacksmith's old negative-margin compensation for the unused upper band
+ * would otherwise throw the image frame above the now-full-height viewport.
+ * Float only its existing close button; the forge artwork starts at y=0.
+ * All active forge tabs, inventory, models and drag interactions are retained. */
+.game3d-view .axe-service-workspace[data-service-extent="viewport-top"].axe-service-workspace--blacksmith .axe-service-heading {
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  left: auto;
+  width: auto;
+  z-index: 6;
+}
+.game3d-view .axe-service-workspace[data-service-extent="viewport-top"].axe-service-workspace--blacksmith .axe-blacksmith-viewport {
+  margin-top: 0 !important;
+}
+
+/* Small screens still reach the top of the *game* viewport. Each service's
+ * existing responsive horizontal and bottom insets remain unchanged. */
+@media (max-width: 760px), (max-height: 600px) {
+  .game3d-view .axe-service-workspace[data-service-extent="viewport-top"] {
+    top: 0 !important;
+  }
+}
