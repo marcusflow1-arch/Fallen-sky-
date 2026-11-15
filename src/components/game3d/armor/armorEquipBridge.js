@@ -94,24 +94,57 @@ export function useArmoredAppearance(appearance, characterId) {
     setInventoryWorn((previous) => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
   }), []);
   const [pieces, setPieces] = useState([]);
+  const [manifestState, setManifestState] = useState({bodyId:null,ready:false,error:''});
+  const equippedPieceIds = Object.values(inventoryWorn).filter(Boolean).sort().join('|');
   useEffect(() => {
     if (syncRequested || typeof window === 'undefined') return;
     syncRequested = true;
     window.dispatchEvent(new CustomEvent(ARMOR_SYNC_REQUEST_EVENT));
   }, []);
   useEffect(() => {
-    if (!body) { setPieces([]); return undefined; }
+    if (!body) {
+      setPieces([]);
+      setManifestState({bodyId:null,ready:true,error:''});
+      return undefined;
+    }
     let alive = true;
-    loadBuiltinLayers('armor')
-      .then((manifest) => { if (alive) setPieces((manifest[body.gender] || []).filter((p) => p.rig_id === body.rig_id)); })
-      .catch(() => { if (alive) setPieces([]); });
+    setManifestState({bodyId:body.id,ready:false,error:''});
+    loadBuiltinLayers('armor',{equippedIds:equippedPieceIds.split('|').filter(Boolean)})
+      .then((manifest) => {
+        if (!alive) return;
+        setPieces((manifest[body.gender] || []).filter((p) => p.rig_id === body.rig_id));
+        setManifestState({bodyId:body.id,ready:true,error:''});
+      })
+      .catch(error => {
+        if (!alive) return;
+        setPieces([]);
+        setManifestState({bodyId:body.id,ready:false,error:error?.message||'Armor manifest could not load'});
+      });
     return () => { alive = false; };
-  }, [body?.id]);
+  }, [body?.id,equippedPieceIds]);
   const resolved = useMemo(
     () => reconcileInventoryArmorOverrides(equipped, inventoryWorn, PACK_SET_IDS),
     [equipped, inventoryWorn],
   );
-  return useMemo(() => withEquippedArmor(appearance, resolved, pieces), [appearance, resolved, pieces]);
+  return useMemo(() => {
+    const result=withEquippedArmor(appearance,resolved,pieces);
+    // The inventory owns the equipment. If a GLB was never authored for a
+    // particular armor set/body, report that specific gap instead of silently
+    // showing an unchanged character in the world and every 3D viewer.
+    const equippedParts=Object.entries(inventoryWorn).filter(([,id])=>Boolean(id));
+    if(!equippedParts.length)return result;
+    let warnings=[];
+    if(!body){
+      warnings=['Equipped fitted armor needs a compatible fused Eve/Adam body.'];
+    }else if(manifestState.error){
+      warnings=['Armor assets unavailable: '+manifestState.error];
+    }else if(manifestState.bodyId===body.id&&manifestState.ready){
+      warnings=equippedParts.filter(([slot,id])=>!
+        pieces.some(piece=>piece.slot===slot&&piece.id===id))
+        .map(([slot,id])=>slot+': no fitted 3D model for '+id);
+    }
+    return warnings.length?{...result,game3d_armor_visual_warnings:warnings}:result;
+  },[appearance,resolved,pieces,inventoryWorn,body,manifestState]);
 }
 
 if (typeof window !== 'undefined' && !window.__axeArmorEquipBridge) {
