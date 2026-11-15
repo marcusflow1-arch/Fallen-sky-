@@ -109,6 +109,46 @@ function groundSampler(source){
     return hit?.point.y??null;
   };
 }
+/**
+ * Level each planned building's footprint in the NEW imported terrain copy.
+ * Softly grades 10m transition bands back into the original mountains.
+ * The existing Acropolis, canal and Classic variant are not touched.
+ * A site formerly had up to a 19m gap between its doorstep and ground.
+ */
+export function gradeSuigenTownTerrain(source){
+  const sourceY=groundSampler(source);
+  const targets=SUIGEN_TOWN_PLOTS.map(plot=>{
+    const facing=rotatePoint(plot,0,plot.depth/2+3.4);
+    return {...plot,targetY:sourceY(facing.x,facing.z)};
+  }).filter(p=>Number.isFinite(p.targetY));
+  const sm=t=>{const x=Math.min(1,Math.max(0,t));return x*x*(3-2*x);};
+  let adjusted=0;
+  source?.traverse(node=>{
+    if(!node.isMesh||node.name!=='Map_Terrain_2400m')return;
+    const original=node.geometry,modified=original.clone();
+    const pos=modified.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const x=pos.getX(i),z=pos.getZ(i),y=pos.getY(i);
+      let finalY=y;
+      for(const plot of targets){
+        if(Math.abs(x-plot.x)>plot.width+15||
+           Math.abs(z-plot.z)>plot.depth+15)continue;
+        const p=localPoint(plot,x,z),w=plot.width/2,d=plot.depth/2;
+        const tx=sm((w+14-Math.abs(p.x))/10);
+        const tz=sm((d+14-Math.abs(p.z))/10);
+        const blend=tx*tz;
+        if(blend>.0001)finalY=mix(finalY,plot.targetY,blend);
+      }
+      if(Math.abs(finalY-y)>1e-5){pos.setY(i,finalY);adjusted++;}
+    }
+    pos.needsUpdate=true;
+    modified.computeVertexNormals();
+    modified.computeBoundingBox();modified.computeBoundingSphere();
+    node.geometry=modified;original.dispose();
+  });
+  return {adjustedVertices:adjusted,gradedPlots:targets.length};
+}
+
 function signTexture(label){
   if(typeof document==='undefined')return null;
   const canvas=document.createElement('canvas');
@@ -136,6 +176,7 @@ export function createSuigenTownDistrict({worldRoot,terrainRoot}={}){
   if(!worldRoot?.isObject3D)throw Error('Suigen town requires loaded map root');
   const root=new THREE.Group();root.name='Suigen_Living_Town_60_Enterable_Interiors';
   worldRoot.add(root);
+  const terrainGrade=gradeSuigenTownTerrain(terrainRoot||worldRoot);
   const materials=makeMaterials(),batches=new Map(),colliderGeos=[];
   const locations=[],lights=[],signs=[];
   const tmpP=new THREE.Vector3(),tmpQ=new THREE.Quaternion(),tmpS=new THREE.Vector3();
@@ -511,6 +552,7 @@ export function createSuigenTownDistrict({worldRoot,terrainRoot}={}){
     merchants:locations.filter(p=>p.merchantId).length,
     walkableSurfaces:walkables.length,
     floorLevels:locations.reduce((n,p)=>n+p.stories,0),
+    gradedTerrainVertices:terrainGrade.adjustedVertices,
     floorAndStairTriangles:colliders?.index?colliders.index.count/3:
       (colliders?.attributes?.position?.count||0)/3,
   });
