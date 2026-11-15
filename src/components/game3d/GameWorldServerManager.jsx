@@ -23,10 +23,16 @@ const POLL_MS = 15000;
  *  - Renders a small HUD widget showing the connection status and capacity
  *  - Bridges to the existing MultiplayerSystem for the actual presence sync
  */
-export default function GameWorldServerManager() {
+export default function GameWorldServerManager({ showHud = false }) {
   const { user } = useAuth();
   const [status, setStatus] = useState('connecting'); // connecting | connected | full | error
-  const [onlineCount, setOnlineCount] = useState(0);
+  const [onlineCount, setOnlineCount] = useState(null);
+  useEffect(()=>{
+    const data={status,count:onlineCount,max:MAX_PLAYERS};
+    window.__game3dWorldPresence=data;
+    window.dispatchEvent(new CustomEvent('game3dWorldPresence',{detail:data}));
+    return ()=>{if(window.__game3dWorldPresence===data)window.__game3dWorldPresence=null;};
+  },[status,onlineCount]);
   const joinedRef = useRef(false);
 
   useEffect(() => {
@@ -89,9 +95,10 @@ export default function GameWorldServerManager() {
   const cfg = statusConfig[status];
   const Icon = status === 'connected' ? Wifi : WifiOff;
 
+  if(!showHud)return null; // presence polling continues; Settings owns the normal presentation.
   return (
     <div
-      className="fixed bottom-4 left-4 z-40 pointer-events-none flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium tracking-wide backdrop-blur-md"
+      className="game3d-online-pill fixed z-40 pointer-events-none flex items-center gap-2 px-2 py-1 rounded-full text-[10px] font-medium tracking-wide backdrop-blur-md"
       style={{
         background: 'rgba(10, 14, 20, 0.6)',
         border: `1px solid ${cfg.border.replace('border-', '').replace('/30', '')}`,
@@ -101,7 +108,7 @@ export default function GameWorldServerManager() {
       <span className={cfg.color}>{cfg.label}</span>
       <span className="text-white/30">·</span>
       <Users className="w-3 h-3 text-white/60" />
-      <span className="text-white/80 font-mono">{onlineCount}/{MAX_PLAYERS}</span>
+      <span className="text-white/80 font-mono">{onlineCount??'—'}/{MAX_PLAYERS}</span>
       {status === 'full' && (
         <span className="text-red-300/80 ml-1">(Try again soon)</span>
       )}
