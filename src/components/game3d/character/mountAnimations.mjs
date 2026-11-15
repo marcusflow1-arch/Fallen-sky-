@@ -198,7 +198,12 @@ export async function prepareMountAnimationClips(root, embeddedClips = [], defin
     try {
       const source=await loadDogSource(definition);
       const gait=retargetDogMountClips(source.scene,source.animations||[],root,definition.id,profile.map);
-      return combineNativeFactionPetClips(sanitizeFactionThreeNativeClips(root,embeddedClips,definition),gait,definition.animationRigProfile);
+      // #160's retargeted wolf root-pelvis rotation was still steering the
+      // animal visually sideways, fighting the corrected world facing. Apply
+      // the same Faction-3-only pelvis/unsafe-track filter to the gait as
+      // the native clip, while leaving all four animated legs intact.
+      const steadyGait=sanitizeFactionThreeNativeClips(root,gait,definition);
+      return combineNativeFactionPetClips(sanitizeFactionThreeNativeClips(root,embeddedClips,definition),steadyGait,definition.animationRigProfile);
     } catch(error) {
       console.warn('Faction pet baby-wolf gait unavailable; using native idle and local gait',error);
       return proceduralFactionPetGait(root,sanitizeFactionThreeNativeClips(root,embeddedClips,definition),definition.animationRigProfile);
