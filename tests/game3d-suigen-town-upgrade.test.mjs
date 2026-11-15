@@ -42,7 +42,7 @@ test('All buildings receive interior geometry and walkable upper floors',()=>{
    '// refrigerator','// stovetop','// Dinner','// Second storey',
    'const steps=18','// The underside of the ROOF',
    'collide(plot,sx,y+.005,z','const door=new THREE.Group()',
-   'SUIGEN_TOWN_PLOTS.entries()','mergeGeometries(colliderGeos,false)'])
+   'for(const original of SUIGEN_TOWN_PLOTS)','mergeGeometries(colliderGeos,false)'])
    assert(district.includes(expr),expr);
  assert(district.includes("roof")&&district.includes("glass")&&district.includes("lacquer"));
  assert(district.includes('position.x=previous.x;position.z=previous.z;return true;'));
