@@ -3,12 +3,9 @@ import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {SUIGEN_TOWN_PLOTS,SUIGEN_MERCHANT_CATALOG,suigenTownTravelPlan} from './SuigenTownPlan.mjs';
 import {createSuigenTerrainHeightSampler} from './SuigenTerrainHeight.mjs';
 
-const C=Math.PI/180;
 const unit=new THREE.BoxGeometry(1,1,1);
 const plane=new THREE.PlaneGeometry(1,1);
 plane.rotateX(-Math.PI/2);
-const V3=()=>new THREE.Vector3();
-const rand=seed=>(Math.sin(seed*147.19+31.4)*43758.5453)%1;
 const mix=(a,b,t)=>a+(b-a)*t;
 
 function patternMaterial(name,color,roughness=.72,metalness=0){
@@ -167,7 +164,7 @@ export function createSuigenTownDistrict({worldRoot,terrainRoot}={}){
   worldRoot.add(root);
   const terrainGrade=gradeSuigenTownTerrain(terrainRoot||worldRoot);
   const materials=makeMaterials(),batches=new Map(),colliderGeos=[];
-  const locations=[],lights=[],signs=[];
+  const locations=[],signs=[];
   const tmpP=new THREE.Vector3(),tmpQ=new THREE.Quaternion(),tmpS=new THREE.Vector3();
   const tmpM=new THREE.Matrix4();
   const terrainY=groundSampler(terrainRoot||worldRoot);
@@ -188,7 +185,6 @@ export function createSuigenTownDistrict({worldRoot,terrainRoot}={}){
     tmpS.set(w,1,d);tmpM.compose(tmpP,tmpQ,tmpS);
     const g=plane.clone();g.applyMatrix4(tmpM);colliderGeos.push(g);
   };
-  const addRail=(plot,x,y,z,w,sz)=>add(plot,'timber',x,y,z,w,.1,sz);
   // Place stepped ground-level stones, retaining the GLB terrain as physics.
   const roads=suigenTownTravelPlan().roads;
   for(const road of roads){
@@ -209,7 +205,7 @@ export function createSuigenTownDistrict({worldRoot,terrainRoot}={}){
       }
     }
   }
-  for(const [index,original] of SUIGEN_TOWN_PLOTS.entries()){
+  for(const original of SUIGEN_TOWN_PLOTS){
     const plot={...original};
     const halfW=plot.width/2,halfD=plot.depth/2;
     const probes=[[0,0],[-halfW,-halfD],[halfW,halfD],[-halfW,halfD],[halfW,-halfD]];
