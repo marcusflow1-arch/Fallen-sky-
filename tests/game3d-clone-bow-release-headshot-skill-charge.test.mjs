@@ -5,7 +5,7 @@ import {
   BOW_FULL_CHARGE_MS, getBowChargeStatus, applyBowImpactDamage, isBowHeadshotPoint,
 } from '../src/components/game3d/combat/ArcheryChargeRules.mjs';
 import {
-  getSkillChargeStatus, qualifyChargedCast, chargedStrikeModifiers,
+  getSkillChargeStatus, isChargeableCombatSkill, qualifyChargedCast, chargedStrikeModifiers,
   CHARGE_PERCENT_STEP,
 } from '../src/components/game3d/combat/ChargedSkillRules.mjs';
 
@@ -70,6 +70,16 @@ test('proportional mastery ability bonuses stay capped and last-hit-only for thr
   assert.equal(chargedStrikeModifiers(result,0,3).multiplier,1);
   assert.equal(chargedStrikeModifiers(result,1,3).multiplier,1);
   assert.equal(chargedStrikeModifiers(result,2,3).multiplier,1.2);
+});
+
+test('authored attack skills can opt into charging before max mastery, but passive and AoE cannot',()=>{
+  const fiveSeconds={...skill,charge_duration_ms:5000};
+  assert.equal(isChargeableCombatSkill(fiveSeconds,1),true);
+  assert.equal(qualifyChargedCast(fiveSeconds,1,2500).chargePercent,50);
+  assert.ok(Math.abs(qualifyChargedCast(fiveSeconds,1,2500).powerMultiplier-1.1)<1e-9);
+  assert.equal(isChargeableCombatSkill({...skill,skill_type:'PASSIVE',chargeable:true},30),false);
+  assert.equal(isChargeableCombatSkill({...skill,axe_pattern:'aoe',chargeable:true},30),false);
+  assert.equal(isChargeableCombatSkill(skill,1),false);
 });
 
 test('world uses button DOWN only to draw, button UP to shoot once',()=>{
