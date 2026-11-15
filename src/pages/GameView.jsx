@@ -708,7 +708,7 @@ export default function GameView() {
         storeOpen || progressionOpen || pauseMenuOpen} />
       {/* Small third icon next to the two Chronicle controls. Signups and
           spectators are server-verified; games themselves are not yet playable. */}
-      <MiniGamesHub userId={user?.id} suppressed={services.active || services.expanded ||
+      <MiniGamesHub userId={user?.id} showLauncher={communityHUD.miniGames} suppressed={services.active || services.expanded ||
         storeOpen || progressionOpen || pauseMenuOpen || friendsListOpen || clanOverlayOpen} />
       <Game3DCompetitionInbox enabled={phase==='world'} userId={user?.id} />
       <DuelSystem userId={user?.id} />
