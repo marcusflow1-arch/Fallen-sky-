@@ -62,6 +62,13 @@ export function sanitizeFactionThreeNativeClips(root, clips=[], definition={}) {
       const node=trackTarget(root,track,cache);
       const targetName=String(track.name||'').slice(0,String(track.name||'').lastIndexOf('.'));
       const prop=trackProperty(track);
+      // The old baby-wolf body/root yaw does not belong on the uploaded
+      // tiger's pelvis bone. It can rotate the skinned torso sideways while
+      // its world/navigation root still faces forward. Lock this single
+      // mount's pelvis to its imported bind rotation; leg, head, tail and wing
+      // tracks continue animating normally.
+      if(norm(node?.name||targetName)==='pelvis'&&
+          ['position','quaternion','scale'].includes(prop))return false;
       if(helperName(targetName)||helperName(node?.name))return false;
       // Non-bone spatial controls are not allowed to drive the mount rig.
       // Preserve non-transform morph weights on the original visual mesh.
