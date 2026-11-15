@@ -56,7 +56,7 @@ export default function AXEServiceWorkspace({ mode, onClose }) {
   };
   return (
     <section ref={root} className={`axe-service-workspace ${world ? 'axe-service-workspace--world' : 'axe-service-workspace--panel'} ${group.id === 'blacksmith' ? 'axe-service-workspace--blacksmith' : group.id === 'spiritual' ? 'axe-service-workspace--spiritual' : group.id === 'companion' ? 'axe-service-workspace--companion' : group.id === 'appearance' ? 'axe-service-workspace--appearance' : group.id === 'character' ? 'axe-service-workspace--character' : group.id === 'skills' ? 'axe-service-workspace--skills' : group.id === 'quest_logbook' ? 'axe-service-workspace--quest-logbook' : ''}`}
-      data-service-ui="true" data-mobile-pane={mobilePane} aria-label={`${group.label} workspace`}
+      data-service-ui="true" data-service-extent="viewport-top" data-mobile-pane={mobilePane} aria-label={`${group.label} workspace`}
       onKeyDown={event => {
         if (event.key === 'Escape') { event.preventDefault(); onClose(); }
         // Service fields and shortcuts never bubble into window gameplay listeners.
