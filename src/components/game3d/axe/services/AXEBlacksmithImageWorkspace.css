@@ -1708,3 +1708,23 @@
   min-width:1180px;
  }
 }
+
+
+/* Clone Blacksmith title placement only. Forge size, tabs, inventory geometry,
+ * equipment transactions, masks and artwork remain exactly as approved.
+ * Inventory shell begins at 15% of the 1672x941 stage; the heading ends
+ * immediately above it, rather than floating at 2.9% near Services. */
+.game3d-view .axe-service-workspace--blacksmith .axe-blacksmith-live-heading {
+  left:3.4%;
+  top:8.8%;
+  width:28.8%;
+  min-height:5.2%;
+  padding:1px 9px;
+  pointer-events:none;
+}
+/* Never let the title become an invisible click blocker for inventory/forge
+ * controls or the independent elevated Services navigation above. */
+.game3d-view .axe-service-workspace--blacksmith .axe-blacksmith-live-heading *,
+.game3d-view .axe-service-workspace--blacksmith .axe-blacksmith-reference {
+  pointer-events:none;
+}
