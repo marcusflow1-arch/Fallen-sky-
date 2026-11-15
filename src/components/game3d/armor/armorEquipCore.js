@@ -42,19 +42,20 @@ export function withEquippedArmor(appearance, equipped, pieces, slots) {
 
 
 /**
- * The clone's Crescent Moon inventory is the source of truth for what is worn.
- * The appearance bridge also persists old visual overrides across visits to the
- * world, so an item unequipped in the inventory screen (or destroyed outside
- * the world) could previously remain visible when re-entering Game 3D.
- *
- * Clear only stale Crescent Moon overrides; leave character-creator choices for
- * unrelated armor untouched. Current inventory equips always win per slot.
- * This is a pure display reconciliation: it never grants or equips an item.
+ * The inventory is authoritative for equipped armor packs, even when a menu
+ * opens before the world creates its equip-event forwarder. Clearing a pack
+ * slot must also clear the old bridge override, without removing unrelated
+ * creator-selected customization layers or changing owned inventory.
  */
-export function reconcileInventoryArmorOverrides(saved = {}, inventoryWorn = {}) {
+export function reconcileInventoryArmorOverrides(
+  saved = {}, inventoryWorn = {},
+  knownSets = ['nightscale', 'frostwarden', 'moonfeather', 'crescent_moon'],
+) {
   const resolved = { ...saved };
+  const ids = new Set((knownSets || []).map(set => typeof set === 'string' ? set : set?.id).filter(Boolean));
   for (const [slot, id] of Object.entries(resolved)) {
-    if (typeof id === 'string' && id.startsWith('crescent_moon_') && inventoryWorn[slot] !== id) {
+    if (typeof id === 'string' && [...ids].some(set => id.startsWith(set + '_')) &&
+        inventoryWorn[slot] !== id) {
       resolved[slot] = '';
     }
   }
