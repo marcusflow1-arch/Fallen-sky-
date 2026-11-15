@@ -14,7 +14,7 @@ export function validateGame3DGLB(input){
 // massive GLBs; joining all base64 into one JS string exhausts memory.
 export function game3DMapCodeParts(input,{name='Game3D_Clone_Full_Map',region='wolfveil'}={}){
   const bytes=validateGame3DGLB(input);
-  const output=[`// Game 3D clone map — complete binary embedded as executable JavaScript.
+  const output=[`// Game 3D clone map - complete binary embedded as executable JavaScript.
 export const MAP_NAME=${JSON.stringify(String(name))};
 export const MAP_REGION=${JSON.stringify(String(region))};
 const PARTS=[
