@@ -70,6 +70,7 @@ import { AXE_AOE_CHANNEL, isAOEChannelUnlocked } from './combat/ContinuousAOERul
 import { pickForwardCombatTargets } from './combat/FreeAimCombatTargets';
 import { BOW_PVE_RANGE, selectCameraBowTarget, cameraBowImpactPoint } from './combat/BowCameraAim.mjs';
 import { getBowChargeStatus, applyBowImpactDamage } from './combat/ArcheryChargeRules.mjs';
+import { shouldUseBowAimingLocomotion } from './player/BowMovementRules.mjs';
 import { createGame3DBowAimVisuals } from './vfx/Game3DBowSpiritBird.mjs';
 import { SKILL_TYPE } from './skills/skillTypes';
 import { getPlayerHUD as getHUDForSkill } from './playerHUDStore';
@@ -2740,14 +2741,24 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         const isMoving = move.lengthSq() > 0;
         const isRunning = !!keys.current['shift'] && isMoving;
         const isSprinting = !!keys.current['control'] && isMoving;
-        if (playerAnim?.setAiming && otsAim.current.appliedAim !== otsAim.current.aiming) { otsAim.current.appliedAim = otsAim.current.aiming; playerAnim.setAiming(otsAim.current.appliedAim); } const isAiming = !!playerAnim?.getIsAiming?.();
+        // A held LEFT click is also a drawn-bow aim state. Walk, strafe,
+        // sprint and camera motion remain independent of its charge timer.
+        const bowDrawAiming = shouldUseBowAimingLocomotion({
+          drawn:heldBow.active, bowEquipped:getActiveWeaponPath()==='ranged',
+          mounted, aimHeld:otsAim.current.aiming,
+        });
+        if(playerAnim?.setAiming && otsAim.current.appliedAim !== bowDrawAiming) {
+          otsAim.current.appliedAim=bowDrawAiming;
+          playerAnim.setAiming(bowDrawAiming);
+        }
+        const isAiming = !!playerAnim?.getIsAiming?.();
         // Locked on, the hero keeps facing the target, so a click move can be a strafe.
         const moveDirection = clickSteer && combatAxes ? directionRelativeToFacing(clickSteer, combatAxes.forward)
           : keys.current['s'] ? 'backward' : keys.current['a'] ? 'left' : keys.current['d'] ? 'right' : 'forward';
         const combatLocked = !!combatAxes;
         // Free movement turns the body toward travel. Side/back clips apply
         // only while lock-on holds its facing; otherwise use its forward gait.
-        const animationDirection = combatLocked ? moveDirection : 'forward';
+        const animationDirection = combatLocked || bowDrawAiming ? moveDirection : 'forward';
         const isCrouching = !!playerAnim?.getIsCrouching?.();
         const movementOverridden = !!playerAnim?.isMovementOverridden?.();
         // Ctrl is the dedicated Sprint input. Its 2%-per-level passive affects
@@ -2775,7 +2786,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
               Math.hypot(model.position.x-fromX,model.position.z-fromZ) > .05) {
             noteSprintTravel(delta);
           }
-          if (!combatAxes && !otsAim.current.aiming) {
+          if (!combatAxes && !otsAim.current.aiming && !heldBow.active) {
             const angle = Math.atan2(move.x, move.z);
             const targetQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
             model.quaternion.slerp(targetQ, ROT_SMOOTH);
