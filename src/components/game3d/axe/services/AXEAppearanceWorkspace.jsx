@@ -17,9 +17,10 @@ import AXEGlassLoadoutPane from './AXEGlassLoadoutPane';
 import './AXEAppearanceWorkspace.css';
 
 const GameCharacterPreview = lazy(() => import('../../equipment/EquipmentPreview3D'));
+const CharacterWorkspace = lazy(() => import('./AXECharacterWorkspace'));
 const CapeSubTab = lazy(() => import('../../progression/hub/CapeSubTab'));
 const WingsSubTab = lazy(() => import('../../progression/hub/WingsSubTab'));
-const TAB_NAMES = ['Overview', 'Equipment', 'Vanity', 'Costumes', 'Wings', 'Aura'];
+const TAB_NAMES = ['Character', 'Equipment', 'Vanity', 'Costumes', 'Wings', 'Aura'];
 // Eight viewer slots (four on each side) remain visible on every Appearance tab.
 // Arms has no separate Vanity slot in the current equipment rules; render its
 // actual empty state instead of inventing an item to match concept artwork.
@@ -69,16 +70,16 @@ export default function AXEAppearanceWorkspace({ serviceId = 'cape', stationMess
   useEffect(()=>subscribeAXEEquipmentInventory(state=>setAllEquipment(state?.items||getAllAXEEquipmentItems())),[]);
   useEffect(()=>subscribeAXEAura(setAuraRecords),[]);
   useEffect(()=>subscribeAppearanceAuraSource(setAuraSource),[]);
-  const [tab, setTab] = useState(() => initialTab === 'Equipment' ? 'Equipment' : serviceId === 'equipment_aura' ? 'Aura' : serviceId === 'vanity' ? 'Vanity' : serviceId === 'costume' ? 'Costumes' : 'Overview');
+  const [tab, setTab] = useState(() => initialTab === 'Equipment' ? 'Equipment' : serviceId === 'equipment_aura' ? 'Aura' : serviceId === 'vanity' ? 'Vanity' : serviceId === 'costume' ? 'Costumes' : 'Character');
   const [selected, setSelected] = useState(null); // {kind: 'vanity'|'costume', id}
   const [detail, setDetail] = useState('');
   const [notice, setNotice] = useState('');
   const [filter, setFilter] = useState('All');
 
   useEffect(() => {
-    const destination = initialTab === 'Equipment' ? 'Equipment' : serviceId === 'equipment_aura' ? 'Aura' : serviceId === 'vanity' ? 'Vanity' : serviceId === 'costume' ? 'Costumes' : 'Overview';
+    const destination = initialTab === 'Equipment' ? 'Equipment' : serviceId === 'equipment_aura' ? 'Aura' : serviceId === 'vanity' ? 'Vanity' : serviceId === 'costume' ? 'Costumes' : 'Character';
     setTab(destination);
-    setFilter(destination === 'Overview' ? 'All' : destination);
+    setFilter(destination === 'Character' ? 'All' : destination);
     setSelected(null); setDetail('');
   }, [serviceId, initialTab]);
   useEffect(() => subscribeCharacterChange(() => {
@@ -110,7 +111,7 @@ export default function AXEAppearanceWorkspace({ serviceId = 'cape', stationMess
     .filter(row => row.piece?.slot === row.slot);
 
   const showTab = next => {
-    setTab(next); setFilter(next === 'Overview' ? 'All' : next === 'Vanity' || next === 'Costumes' ? next : 'All');
+    setTab(next); setFilter(next === 'Character' ? 'All' : next === 'Vanity' || next === 'Costumes' ? next : 'All');
     setDetail(''); setNotice('');
   };
   const selectItem = item => {
@@ -129,7 +130,15 @@ export default function AXEAppearanceWorkspace({ serviceId = 'cape', stationMess
       : (result.message || result.reason || 'Unable to equip appearance.'));
   };
   const selectOutfit = def => {
-    setSelected({kind:'costume',id:def.id}); showTab('Costumes');
+    setSelected({kind:'costume',id:def.id});
+    if(tab==='Character'){
+      // The outfit wardrobe now lives BESIDE the original character box.
+      // Selecting a real owned outfit equips it directly so the shared 3D
+      // viewer and real equipment stats refresh without leaving Character.
+      const result=equipAXECostume(def.id);
+      setNotice(result.ok?(result.message||def.name+' equipped.') :
+        (result.message||result.reason||'Unable to equip outfit.'));
+    }else showTab('Costumes');
   };
   const handleSlot = slot => {
     if (slot === 'cape') { setDetail('cape'); return; }
@@ -152,21 +161,10 @@ export default function AXEAppearanceWorkspace({ serviceId = 'cape', stationMess
     </button>;
   };
 
-  return <div className="axe-app-root" aria-label="Appearance customization">
-    <div className="axe-app-brand"><span className="axe-app-banner" aria-hidden="true">✧</span>
-      <div><h2>Appearance</h2><p>Customize your look, costumes, and vanity sets.</p></div>
-      {stationMessage && <p className="axe-app-placement-note" role="status">
-        <span aria-hidden="true">ⓘ</span>{stationMessage}</p>}
-    </div>
-    <nav className="axe-app-tabs" aria-label="Appearance tabs">
-      {TAB_NAMES.map(name => <button type="button" key={name} aria-pressed={tab === name}
-        onClick={() => showTab(name)}>{name === 'Overview' ? <Sparkles size={20}/> :
-          name === 'Equipment' ? <Shield size={20}/> : name === 'Vanity' ? <Gem size={20}/> : name === 'Costumes' ? <Shirt size={20}/> : name === 'Aura' ? <Sparkles size={20}/> : <Feather size={20}/>}
-        <span>{name}</span></button>)}
-    </nav>
 
-    {tab === 'Equipment' ? <AXEGlassLoadoutPane actor="player" onNotice={setNotice}/> : <div className="axe-app-layout">
-      <aside className="axe-app-rail" aria-label="Costume wardrobe outfits">
+  // Retain the ONLY Overview feature the owner wants: the live owned outfit
+  // selector. Reuse the same rail alongside the embedded Character panel.
+  const outfitRail = (<aside className="axe-app-rail" aria-label="Costume wardrobe outfits">
         <div className="axe-app-rail-glyph"><Shirt size={21}/><span>Outfits</span></div>
         {ownedCostumes.map(def => <button type="button" key={def.id}
           title={def.name} aria-label={'Select outfit '+def.name}
@@ -177,7 +175,36 @@ export default function AXEAppearanceWorkspace({ serviceId = 'cape', stationMess
           {costumes.equippedCostumeId === def.id && <Check className="axe-app-rail-check" size={13}/>}
         </button>)}
         {!ownedCostumes.length && <small>No outfits owned</small>}
-      </aside>
+      </aside>);
+
+  return <div className="axe-app-root" aria-label="Character, equipment and appearance customization">
+    <div className="axe-app-brand"><span className="axe-app-banner" aria-hidden="true">✧</span>
+      <div><h2>Character</h2><p>Character attributes, equipped gear, outfits and appearance.</p></div>
+      {stationMessage && <p className="axe-app-placement-note" role="status">
+        <span aria-hidden="true">ⓘ</span>{stationMessage}</p>}
+    </div>
+    <nav className="axe-app-tabs" aria-label="Character and appearance tabs">
+      {TAB_NAMES.map(name => <button type="button" key={name} aria-pressed={tab === name}
+        onClick={() => showTab(name)}>{name === 'Character' ? <UserRound size={20}/> :
+          name === 'Equipment' ? <Shield size={20}/> : name === 'Vanity' ? <Gem size={20}/> : name === 'Costumes' ? <Shirt size={20}/> : name === 'Aura' ? <Sparkles size={20}/> : <Feather size={20}/>}
+        <span>{name}</span></button>)}
+    </nav>
+
+    {tab === 'Equipment' ? <AXEGlassLoadoutPane actor="player" onNotice={setNotice}/> :
+      tab === 'Character' ? <div className="axe-app-unified-character-layout">
+        {outfitRail}
+        <section className="axe-app-unified-character-panel"
+          aria-label="Character 3D viewer, equipment, attributes and live statistics">
+          <Suspense fallback={<p className="axe-app-loading">Loading Character…</p>}>
+            <CharacterWorkspace embedded/>
+          </Suspense>
+          {notice && <div className="axe-app-notice" role="status">{notice}
+            <button type="button" onClick={()=>setNotice('')}
+              aria-label="Dismiss outfit message"><X size={15}/></button>
+          </div>}
+        </section>
+      </div> : <div className="axe-app-layout">
+      {outfitRail}
 
       <section className={"axe-app-model-stage"+(equippedAura?' axe-app-model-stage--aura':'')} aria-label="Character 3D viewer and equipped appearance slots">
         <div className="axe-app-model-glow" aria-hidden="true"/>
@@ -248,8 +275,6 @@ export default function AXEAppearanceWorkspace({ serviceId = 'cape', stationMess
             {!visibleInventory.length && <p className="axe-app-inventory-empty">No owned items in this category.</p>}
           </div>
           </div>
-          {tab === 'Overview' && <p className="axe-app-inventory-note">
-            Overview combines your owned Vanity pieces and Costumes. Select a piece to inspect it.</p>}
         </GlassCard>}
       </main>
 
