@@ -8,6 +8,9 @@ import GameWorld3D from '../components/game3d/GameWorld3D';
 import Game3DPerformanceBootstrap from '../components/game3d/performance/Game3DPerformanceBootstrap';
 import {game3dCharacterModel} from '../components/game3d/game3dCharacterModel';
 import GameHUD from '../components/game3d/hud/GameHUD';
+import {readGame3DCommunityHUD,GAME3D_COMMUNITY_HUD_EVENT}
+  from '../components/game3d/hud/game3dCommunityHUDSettings.mjs';
+import '../components/game3d/hud/Game3DCommunityHUD.css';
 import AXEQuestTrailMount from '../components/game3d/hud/AXEQuestTrailMount';
 import AXEVerifiedQuestbookMount172 from '../components/game3d/axe/quests/AXEVerifiedQuestbookMount172';
 import SoulEmporiumOverlay from '../components/game3d/premiumShop/SoulEmporiumOverlay';
@@ -112,6 +115,12 @@ export default function GameView() {
   const [clanOverlayOpen, setClanOverlayOpen] = useState(false);
   const [learnedSkillIds, setLearnedSkillIds] = useState(() => getLearnedSkillIds());
   const [pauseMenuOpen, setPauseMenuOpen] = useState(false);
+  const [communityHUD,setCommunityHUD]=useState(()=>readGame3DCommunityHUD());
+  useEffect(()=>{
+    const onCommunity=event=>setCommunityHUD(event?.detail||readGame3DCommunityHUD());
+    window.addEventListener(GAME3D_COMMUNITY_HUD_EVENT,onCommunity);
+    return ()=>window.removeEventListener(GAME3D_COMMUNITY_HUD_EVENT,onCommunity);
+  },[]);
   const [themeVolume, setThemeVolume] = useState(() => {
     const saved = parseFloat(localStorage.getItem('game_theme_volume'));
     return Number.isFinite(saved) ? saved : 0.5;
@@ -536,7 +545,9 @@ export default function GameView() {
 
 
   return (
-    <div className="game3d-view fixed inset-0 bg-black overflow-hidden" data-service-mode={services.active ? 'true' : 'false'} data-services-open={services.active || services.expanded ? 'true' : 'false'}>
+    <div className="game3d-view fixed inset-0 bg-black overflow-hidden"
+      style={{'--game3d-community-scale':communityHUD.scale}}
+      data-service-mode={services.active ? 'true' : 'false'} data-services-open={services.active || services.expanded ? 'true' : 'false'}>
       {/* PREVIEW-BRANCH ONLY: no part of this feature is merged/published. */}
       {isAnimationsPreviewHost() && phase==='world' && <button type="button" data-testid="preview-animations-nav"
         onClick={()=>navigate({to:'/Animations'})}
@@ -627,7 +638,7 @@ export default function GameView() {
       {!services.active && services.message && <div className="axe-service-session-notice" role="status">{services.message}</div>}
       {/* World boss UI removed in the systems/animation test scene. */}
       <MultiplayerSystem envUrl="game_world_lowpoly" surface="game-world" />
-      <GameWorldServerManager />
+      <GameWorldServerManager showHud={communityHUD.online && !services.active && !services.expanded} />
       {/* Equipped weapon is the canonical source for mastery/class/role identity. */}
       <AXEWeaponIdentityMount />
       {/* Wuxia blueprint: Shift+1 / Shift+2 draw the two quick-slot weapons. */}
@@ -683,8 +694,8 @@ export default function GameView() {
       <TradePanel />
       <TradeSessionWatcher userId={user?.id} />
       <IncomingRequestToast userId={user?.id} />
-      <WorldChatPanel userId={user?.id} suppressed={services.active} />
-       <EchoChronicleOverlay suppressed={services.active || services.expanded}
+      <WorldChatPanel userId={user?.id} suppressed={services.active} showDock={communityHUD.chat} />
+       <EchoChronicleOverlay suppressed={services.active || services.expanded} showLauncher={communityHUD.echo}
         onOpenQuestLogbook={() => {
           setProgressionOpen(false);setStoreOpen(false);setPauseMenuOpen(false);
           services.controller.open('quest_logbook');
