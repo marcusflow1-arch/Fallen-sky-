@@ -34,7 +34,7 @@ function Stats({ stats }) {
     <p className="axe-app-description">No stat bonuses defined for this item.</p>;
 }
 export default function AXEAppearanceDetails({
-  tab, selectedItem, vanity, costumes, capes, onSelectPiece, onNotice,
+  tab, selectedItem, vanity, costumes, onSelectPiece, onNotice,
 }) {
   const [reviewId,setReviewId] = useState(null);
   const [cardType,setCardType] = useState('silver');
