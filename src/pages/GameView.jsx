@@ -19,6 +19,7 @@ import useAXEServiceMode from '../components/game3d/axe/services/useAXEServiceMo
 import AXEServiceWorkspace from '../components/game3d/axe/services/AXEServiceWorkspace';
 import { getAXEServiceGroupForService } from '../components/game3d/axe/services/AXEServiceGroups.js';
 import { getGame3DMenuShortcut } from '../components/game3d/axe/services/game3dMenuHotkeys.mjs';
+import { getAXECharacterShortcutAction } from '../components/game3d/axe/services/AXECharacterShortcutRouting.mjs';
 import { normalizeAXEServiceRequest } from '../components/game3d/axe/services/AXEServiceRegistry';
 import MultiplayerSystem from '../components/game/MultiplayerSystem';
 import GameWorldServerManager from '../components/game3d/GameWorldServerManager';
@@ -111,6 +112,10 @@ export default function GameView() {
   const [requestedService, setRequestedService] = useState(null);
   const [requestedServiceItemId, setRequestedServiceItemId] = useState(null);
   const [requestedCharacterTab, setRequestedCharacterTab] = useState(null);
+  // Modern Character/Appearance workspace owns C. Track its actual tab so
+  // pressing C from Equipment returns to Character before closing the panel.
+  const [activeCharacterSubview, setActiveCharacterSubview] = useState('Character');
+  const [focusCharacterRequest, setFocusCharacterRequest] = useState(0);
   const [friendsListOpen, setFriendsListOpen] = useState(false);
   const [clanOverlayOpen, setClanOverlayOpen] = useState(false);
   const [learnedSkillIds, setLearnedSkillIds] = useState(() => getLearnedSkillIds());
@@ -472,12 +477,27 @@ export default function GameView() {
       }
 
       if (destination === 'character') {
-        const closingCharacter = progressionOpen && !currentGroup;
-        services.controller.close();
-        setProgressionOpen(!closingCharacter);
+        const action = getAXECharacterShortcutAction({
+          activeGroupId: currentGroup,
+          legacyHubOpen: progressionOpen,
+          activeTab: activeCharacterSubview,
+        });
+        // The former Attributes/Inventory/Companion CharacterProgressionMenu
+        // is not the new C page. Always close it rather than reopening it.
+        setProgressionOpen(false);
         setRequestedService(null);
         setRequestedServiceItemId(null);
-        setRequestedCharacterTab(closingCharacter ? null : 'attributes');
+        setRequestedCharacterTab(null);
+        if (action === 'close') {
+          services.controller.close();
+        } else if (action === 'focus') {
+          setFocusCharacterRequest(value => value + 1);
+        } else {
+          setActiveCharacterSubview('Character');
+          // Reuse the already-registered unified Character + Appearance
+          // workspace, including its current 3D model and live stats.
+          void services.controller.open('character', { serviceId: 'character' });
+        }
         return;
       }
 
@@ -490,7 +510,7 @@ export default function GameView() {
     };
     window.addEventListener('keydown', onServiceKey, true);
     return () => window.removeEventListener('keydown', onServiceKey, true);
-  }, [phase, pauseMenuOpen, progressionOpen, services.controller]);
+  }, [phase, pauseMenuOpen, progressionOpen, activeCharacterSubview, services.controller]);
 
   // Other in-world controls: TAB = Soul Emporium, G = Clan,
   // Shift+L = Friends, ESC = close overlay / pause.
@@ -628,7 +648,9 @@ export default function GameView() {
           setFriendsListOpen(false); setClanOverlayOpen(false);
           services.controller.open(groupId);
         }} />
-      {services.active && <AXEServiceWorkspace mode={services} onClose={() => services.controller.close()} />}
+      {services.active && <AXEServiceWorkspace mode={services} onClose={() => services.controller.close()}
+        onCharacterTabChange={setActiveCharacterSubview}
+        focusCharacterRequest={focusCharacterRequest} />}
       {!services.active && services.message && <div className="axe-service-session-notice" role="status">{services.message}</div>}
       {/* World boss UI removed in the systems/animation test scene. */}
       <MultiplayerSystem envUrl="game_world_lowpoly" surface="game-world" />
