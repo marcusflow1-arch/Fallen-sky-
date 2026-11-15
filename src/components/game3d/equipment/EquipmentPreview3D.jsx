@@ -13,6 +13,8 @@ export default function EquipmentPreview3D() {
   const mount = useRef(null);
   const [visible, setVisible] = useState(() => typeof IntersectionObserver === 'undefined');
   const [loadError, setLoadError] = useState('');
+  const modelWarnings=config.game3d_armor_visual_warnings||[];
+  const visualError=loadError||modelWarnings.join(' · ');
   useEffect(() => {
     const host = mount.current;
     if (!host) return undefined;
@@ -37,12 +39,12 @@ export default function EquipmentPreview3D() {
             onCustomizationState={(state) => setLoadError(state?.error || '')} />
         : <PlayerAvatarPreview config={config}
             modelUrlOverride={config.model_url} orbit controls="compact" />)}
-      {visible && loadError && (
+      {visible && visualError && (
         <div role="status" style={{
           position:'absolute',bottom:8,left:8,right:8,padding:7,
           borderRadius:6,background:'rgba(20,27,36,.90)',color:'#ffd9aa',
           fontSize:11,textAlign:'center',pointerEvents:'none',
-        }}>Equipped armor could not load. {loadError}</div>
+        }}>Equipped armor visuals: {visualError}</div>
       )}
     </div>
   );
