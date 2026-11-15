@@ -1,52 +1,49 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PlayerAvatarPreview from '@/components/onboarding/PlayerAvatarPreview';
-import { ARMOR_SLOTS, creatorBody } from '@/components/onboarding/avatarCustomization';
-import { loadBuiltinLayers } from '@/components/onboarding/creatorBuiltinLayers';
+import CreatorStage from '@/components/onboarding/CreatorStage';
+import { creatorBody } from '@/components/onboarding/avatarCustomization';
 import { useGameAvatar } from '../useGameAvatar';
-import {
-  getAllAXEEquipmentItems, subscribeAXEEquipmentInventory,
-} from '../axe/equipment/AXEEquipmentInventoryStore';
-import { equippedAXEArmorPieces } from '../axe/equipment/AXEArmorPackCatalog';
-import { withEquippedArmor } from '../armor/armorEquipBridge';
 
-// Services can be opened before GameWorld3D mounts its armor event forwarder.
-// Read the same canonical, character-scoped equipment inventory the world uses
-// instead of relying on a world-only event to refresh the 3D preview.
+// Appearance and Character Services use the same inventory-owned appearance
+// and the SAME fused-body renderer as the avatar creator. An offscreen service
+// panel must not consume another WebGL context on a phone.
 export default function EquipmentPreview3D() {
-  const worldAvatar = useGameAvatar();
-  const [items, setItems] = useState(getAllAXEEquipmentItems);
-  const [armorAssets, setArmorAssets] = useState([]);
-  const body = creatorBody(worldAvatar);
-
-  useEffect(() => subscribeAXEEquipmentInventory(state => {
-    setItems(state?.items || getAllAXEEquipmentItems());
-  }), []);
-
+  const config = useGameAvatar();
+  const body = creatorBody(config);
+  const mount = useRef(null);
+  const [visible, setVisible] = useState(() => typeof IntersectionObserver === 'undefined');
+  const [loadError, setLoadError] = useState('');
   useEffect(() => {
-    let active = true;
-    setArmorAssets([]);
-    if (body) {
-      loadBuiltinLayers('armor')
-        .then(manifest => {
-          if (active) setArmorAssets((manifest[body.gender] || [])
-            .filter(asset => asset.rig_id === body.rig_id));
-        })
-        .catch(() => { if (active) setArmorAssets([]); });
+    const host = mount.current;
+    if (!host) return undefined;
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return undefined;
     }
-    return () => { active = false; };
-  }, [body?.id]);
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      setVisible(Boolean(entry?.isIntersecting && entry.intersectionRatio > 0));
+    }, { threshold: 0.01, rootMargin: '40px' });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => { setLoadError(''); }, [config.model_url, config.creator_body]);
 
-  const config = useMemo(() => {
-    if (!body) return worldAvatar;
-    // Explicit empty slots remove stale preview armor on unequip. This does
-    // not mutate the saved creator appearance or the character inventory.
-    const equipped = equippedAXEArmorPieces(items);
-    const overrides = Object.fromEntries(ARMOR_SLOTS.map(slot => [
-      slot, equipped[slot] || '',
-    ]));
-    return withEquippedArmor(worldAvatar, overrides, armorAssets, ARMOR_SLOTS);
-  }, [worldAvatar, body, items, armorAssets]);
-
-  return <PlayerAvatarPreview config={config}
-    modelUrlOverride={config.model_url} controls="compact"/>;
+  return (
+    <div ref={mount} data-game3d-armor-preview
+      style={{position:'relative',width:'100%',height:'100%',minHeight:0}}>
+      {visible && (body
+        ? <CreatorStage key={body.id} config={config} shot="body" livingIdle={false}
+            onCustomizationState={(state) => setLoadError(state?.error || '')} />
+        : <PlayerAvatarPreview config={config}
+            modelUrlOverride={config.model_url} orbit controls="compact" />)}
+      {visible && loadError && (
+        <div role="status" style={{
+          position:'absolute',bottom:8,left:8,right:8,padding:7,
+          borderRadius:6,background:'rgba(20,27,36,.90)',color:'#ffd9aa',
+          fontSize:11,textAlign:'center',pointerEvents:'none',
+        }}>Equipped armor could not load. {loadError}</div>
+      )}
+    </div>
+  );
 }
