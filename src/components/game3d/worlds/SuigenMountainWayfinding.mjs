@@ -164,6 +164,35 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
   // A lake-sized liquid-glass funnel, rooted in the ORIGINAL Suigen mountain
   // terrain rather than Classic Wolfveil's incompatible 82.6m elevation.
   const waterOrigin={x:205,z:390,y:(ground(205,390)??26)+.20};
+  // Real lake basin, not a disc hovering over unaltered mountain dirt.
+  // The wet inner 24m slopes ~3m below the surface; the 9m bank fades
+  // smoothly back to the existing terrain. This copy is hidden in Classic.
+  let lakeGradeVertices=0;
+  for(const mesh of terrain){
+    const geometry=mesh.geometry;
+    const position=geometry?.getAttribute?.('position');
+    if(!position)continue;
+    const graded=geometry.clone(),attr=graded.getAttribute('position');
+    for(let k=0;k<attr.count;k++){
+      const x=attr.getX(k),z=attr.getZ(k);
+      const radial=Math.hypot(x-waterOrigin.x,z-waterOrigin.z);
+      if(radial>=34)continue;
+      const t=Math.min(1,Math.max(0,(radial-24)/10));
+      const blend=t*t*(3-2*t);
+      const depth=2.8+(1-Math.min(1,radial/24))*.9;
+      const desired=waterOrigin.y-depth;
+      const oldY=attr.getY(k);
+      const nextY=oldY*blend+Math.min(oldY,desired)*(1-blend);
+      if(Math.abs(nextY-oldY)>.001){
+        attr.setY(k,nextY);lakeGradeVertices++;
+      }
+    }
+    if(lakeGradeVertices){
+      attr.needsUpdate=true;graded.computeVertexNormals();
+      graded.computeBoundingBox();graded.computeBoundingSphere();
+      mesh.geometry=graded;geometry.dispose();
+    }else graded.dispose();
+  }
   const waterRoot=new THREE.Group();
   waterRoot.name='Suigen_Mountain_Water_Tornado_Real_Terrain';
   waterRoot.position.set(waterOrigin.x,waterOrigin.y,waterOrigin.z);
@@ -231,6 +260,7 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
     root.add(group);portalMeshes.push({group,lens,key,portal});
   }
   root.userData.suigenAbyssCarvedTriangles=carvedTriangles;
+  root.userData.suigenVortexLakeGradedVertices=lakeGradeVertices;
   const floorGeo=colliders.length?mergeGeometries(colliders,false):null;
   colliders.forEach(c=>c.dispose());
   const walkables=[];
