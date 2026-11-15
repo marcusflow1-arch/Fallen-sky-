@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, ChevronDown, Crown, Gem, Heart, LockKeyhole, Save, Shield, Sparkles, Swords, WandSparkles, X } from 'lucide-react';
+import { BookOpen, Gem, Shield, Sparkles, Swords, WandSparkles, X } from 'lucide-react';
 import { getAllSkills, getSkillById } from '../../skills/skillRegistry';
 import { CAST_TYPE, SKILL_TYPE, WEAPON_TYPE } from '../../skills/skillTypes';
 import {
@@ -13,6 +13,11 @@ import {
 import { getAllCompanionSkills, getCompanionSkillById, COMPANION_SKILL_CATEGORY } from '../../skills/companionSkillRegistry';
 import AXESkillMasteryDetail from './AXESkillMasteryDetail';
 import { getSkillMastery, subscribeSkillMastery } from '../../skills/skillMasteryStore';
+import { getAXEEquipmentInventoryState, subscribeAXEEquipmentInventory,
+  switchAXEInventoryWeapon } from '../equipment/AXEEquipmentInventoryStore';
+import {SKILL_BOOK_WEAPON_MODES,getWeaponForSkillBookMode,
+  getSkillBookModeForPreset} from './SkillBookWeaponModes.mjs';
+import {SkillBookWeaponRail,SkillBookStanceStrip} from './SkillBookWeaponControls';
 import './AXESkillBookWorkspace.css';
 
 // No art texture or sample screenshot is rendered. The pages, metallic edges,
@@ -151,19 +156,6 @@ function SlotButton({ id, index, selected, onEquip, onRemove, label, getSkill, c
       aria-label={'Unequip '+skillLabel(skill)+' from '+label}><X size={10}/></button>}
   </div>;
 }
-function PresetRail({ side, activeIndex, onChoose, onSave, label }) {
-  return <aside className={'axe-book-presets axe-book-presets--'+side} aria-label={label+' presets'}>
-    <Crown aria-hidden="true" size={19} />
-    <strong>Presets</strong>
-    <div className="axe-book-presets-rule" />
-    {['I', 'II', 'III'].map((name, index) =>
-      <button type="button" key={name} aria-pressed={activeIndex === index}
-        aria-label={label+' preset '+name} onClick={() => onChoose(index)}>{name}</button>)}
-    <button type="button" className="axe-book-presets-save" title={'Save '+label+' preset'}
-      aria-label={'Save '+label+' preset'} onClick={onSave}><Save size={16}/></button>
-  </aside>;
-}
-
 export default function AXESkillBookWorkspace({ serviceId = 'skills_character', onSelect, onClose }) {
   // Character Hub can also open this component without the world-mode router.
   const [localPage, setLocalPage] = useState(serviceId);
@@ -171,6 +163,7 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
   const companion = currentPage === 'skills_companion';
   const player = useStore(getLoadout, subscribeLoadout);
   const friend = useStore(getCompanionLoadout, subscribeCompanionLoadout);
+  const equipment = useStore(getAXEEquipmentInventoryState, subscribeAXEEquipmentInventory);
   const [banks, setBanks] = useState(readBanks);
   const [presetRevision, setPresetRevision] = useState(0);
   const [leftFilter, setLeftFilter] = useState('enhance');
@@ -181,6 +174,8 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
   const activeIds = companion ? friend.activeSlots : player.activeSlots;
   const passiveIds = companion ? [] : player.passivePanel;
   const playerPresets = getSkillPresets();
+  const activeMode=getSkillBookModeForPreset(playerPresets.index);
+  const ownedWeapons=equipment?.items||[];
   void presetRevision;
 
   useEffect(() => {
@@ -276,6 +271,29 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
       i === banks.passiveIndex ? getLoadout().passivePanel.slice() : set) });
     setStatus('Current skill set saved to this preset.');
   };
+  const chooseWeaponMode = modeId=>{
+    const mode=SKILL_BOOK_WEAPON_MODES.find(entry=>entry.id===modeId);
+    if(!mode)return;
+    const weapon=getWeaponForSkillBookMode(ownedWeapons,mode.id);
+    // Use the canonical atomic weapon-draw transaction. It enforces owned
+    // items and equip restrictions; never write equipment state in the UI.
+    if(weapon){
+      const draw=switchAXEInventoryWeapon(weapon.instanceId);
+      if(!draw.ok){
+        setStatus(draw.message||'This weapon cannot be equipped right now.');
+        return;
+      }
+    }
+    // Existing gameplay hotbar keys 1-0 read this same loadout store.
+    const result=selectSkillPreset(mode.presetIndex);
+    feedback(result);
+    if(!result.ok)return;
+    setRightFilter(mode.id);
+    setSelected(null);
+    setView('skills');
+    setPresetRevision(n=>n+1);
+    setStatus((weapon?.name||mode.label+' slot')+' — '+mode.label+' skill bar selected.');
+  };
   const currentSkill = selected && (companion
     ? getCompanionSkillById(selected.skill_id) : getSkillById(selected.skill_id));
   const advancementSkills = useMemo(() => companion ? getAllCompanionSkills() : getAllSkills(), [companion]);
@@ -286,7 +304,7 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
     <header className="axe-skill-book-header">
       <span className="axe-skill-book-crest"><BookOpen size={30}/></span>
       <div className="axe-skill-book-heading"><h2>Skills &amp; Services</h2>
-        <p>Equip your character and companion's registered abilities</p></div>
+        <p>Damage, Range &amp; Defense weapon bars · real equipped abilities</p></div>
       <nav className="axe-skill-book-mode" aria-label="Skills subpages">
         {[['skills_character','Character'],['skills_companion','Companion']].map(([id,label]) =>
           <button key={id} type="button" aria-pressed={currentPage === id}
@@ -302,24 +320,20 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
         onClick={onClose} aria-label="Close Skills"><X size={19}/></button>}
     </header>
     <div className="axe-skill-book-layout">
-      <PresetRail side="left" label={companion?'Companion support':'Passive'}
-        activeIndex={companion?banks.companionIndex:banks.passiveIndex}
-        onChoose={i=>changePreset('left',i)} onSave={()=>savePreset('left')} />
+      {!companion&&<SkillBookWeaponRail items={ownedWeapons}
+        activeMode={activeMode.id} onChoose={chooseWeaponMode}/>}
       <div className="axe-skill-book-volume">
+        <SkillBookStanceStrip companion={companion}
+          activeIndex={companion?banks.companionIndex:playerPresets.index}
+          onChoose={i=>companion?changePreset('right',i):
+            chooseWeaponMode(SKILL_BOOK_WEAPON_MODES[i].id)}
+          onSave={()=>savePreset('right')}/>
         <div className="axe-skill-book-spread">
           <section className="axe-skill-book-page axe-skill-book-page--left" aria-label="Buffs and passive skills">
             <div className="axe-skill-book-page-title"><Sparkles size={17}/><h2>{view==='skills'?'Skill Details':view==='advance'?'Skill Mastery':(companion?'Support & Abilities':'Buffs & Passives')}</h2></div>
             {view==='buffs' && <FilterBar options={companion?COMPANION_LEFT:LEFT_FILTERS} value={leftFilter}
               onChange={x=>{setLeftFilter(x);setSelected(null);}} />}
             <div className="axe-skill-book-page-content">
-              <aside className="axe-skill-book-slots-vertical" aria-label="Passive and support equip slots">
-                {companion
-                  ? <div className="axe-book-no-passives"><Shield size={18}/><span>Companion abilities use Z / X / V / B slots</span></div>
-                  : passiveIds.map((id,i) => <SlotButton key={i} id={id} index={i}
-                    label={'P'+(i+1)} getSkill={getSkillById}
-                    selected={selected?.skill_type === SKILL_TYPE.PASSIVE}
-                    onEquip={placePassive} onRemove={removePassive} />)}
-              </aside>
               {view==='skills' ? <AXESkillMasteryDetail skill={currentSkill} companion={companion}/>
                 : <SkillGrid side="left" filter={view==='advance'?'advance':leftFilter} isCompanion={companion}
                   skills={view==='advance'?advancementSkills:leftSkills} selected={currentSkill}
@@ -339,13 +353,6 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
                     onSelect={chooseSkill} onQuickEquip={quickEquip} />
                 : <AXESkillMasteryDetail skill={currentSkill} companion={companion}/>}
 
-              <aside className="axe-skill-book-slots-vertical" aria-label="Active skill equip slots">
-                {activeIds.map((id,i) => <SlotButton key={i} id={id} index={i}
-                  label={companion?COMPANION_SLOT_KEYS[i]:String(i+1)}
-                  getSkill={companion?getCompanionSkillById:getSkillById}
-                  selected={!!selected && (companion||selected.skill_type!==SKILL_TYPE.PASSIVE)}
-                  onEquip={placeActive} onRemove={removeActive} />)}
-              </aside>
             </div>
           </section>
         </div>
@@ -361,9 +368,6 @@ export default function AXESkillBookWorkspace({ serviceId = 'skills_character', 
           <span className="axe-skill-book-hotbar-ornament"><WandSparkles size={20}/></span>
         </footer>
       </div>
-      <PresetRail side="right" label={companion?'Companion active':'Active'}
-        activeIndex={companion?banks.companionIndex:playerPresets.index}
-        onChoose={i=>changePreset('right',i)} onSave={()=>savePreset('right')} />
     </div>
     <footer className="axe-skill-book-foot">
       <span role="status">{status || (selected
