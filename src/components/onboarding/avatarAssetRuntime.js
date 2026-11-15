@@ -107,7 +107,15 @@ export async function loadAvatarModel(config={},height=1.8,game3dModelUrl=null){
  if(usedFallback) model.userData.game3dLegacyCharacterFallback = true;
  if(model.userData.game3dFusedCreatorBody)applyFusedWorldProportions(model,appearance);
  else applyCompanionAppearance(model,appearance);
- const customization=new AvatarCustomizationRuntime(model,{gender:appearance.gender,rigId:localBody?.rig_id||model.userData.rigId});
+ const customization=new AvatarCustomizationRuntime(model,{
+  gender:appearance.gender,rigId:localBody?.rig_id||model.userData.rigId,
+  onState:state=>{
+    if(typeof game3dModelUrl==='string'&&typeof window!=='undefined')
+      window.dispatchEvent(new CustomEvent('game3dArmorRenderStatus',{
+        detail:{loading:!!state?.loading,error:state?.error||''},
+      }));
+  },
+ });
  customizations.set(model,customization);await customization.update(appearance);
  return model;
 }
