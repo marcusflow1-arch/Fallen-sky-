@@ -99,7 +99,7 @@ export default function AXEServiceWorkspace({ mode, onClose }) {
             </div> : group.id === 'quest_logbook' ? <div className="axe-service-progression">
               <QuestLogbookWorkspace onClose={onClose} verifiedQuestbookReader={verifiedQuestbookReader170} />
             </div> : group.id === 'character' ? <div className="axe-service-progression">
-              <AppearanceWorkspace serviceId={mode.serviceId} stationMessage={mode.message} />
+              <AppearanceWorkspace serviceId={mode.serviceId} stationMessage={mode.message} onClose={onClose} />
             </div> : group.id === 'blacksmith' ? <>
               <nav className="axe-service-mobile-panes" aria-label="Workspace panels">
                 <button type="button" aria-pressed={mobilePane === 'inventory'} onClick={() => setMobilePane('inventory')}>Inventory</button>
