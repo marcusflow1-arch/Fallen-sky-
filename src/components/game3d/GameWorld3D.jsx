@@ -208,6 +208,9 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
   const checkpointTeleporterRef = useRef(null);
   const checkpointOwnerRef = useRef('');
   const [loading, setLoading] = useState(true);
+  // Manual clone-only GLB / pure-source exporter status. No auto-downloads.
+  const [mapExportState,setMapExportState]=useState('idle');
+  const [mapExportError,setMapExportError]=useState('');
   // Buddha Essence tracks real local combat activity. The same character-scoped
   // store supplies the Spiritual UI and permanent stat allocations; no XP is
   // awarded by opening the menu, passive regeneration or idle ticks.
@@ -4336,6 +4339,33 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
+      {/* Download links are presented in a separate modal after capture;
+          each needs a real user click to satisfy browser download policy. */}
+      {!entryMode && !loading && (
+        <div className="absolute bottom-4 right-4 z-[80] max-w-[min(300px,85vw)]"
+          onPointerDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>
+          <button type="button" disabled={mapExportState==='exporting'}
+            className="rounded-xl border border-cyan-300/60 bg-slate-950/85 px-4 py-2 text-xs font-semibold text-cyan-100 backdrop-blur-xl disabled:opacity-60 hover:bg-cyan-950/95"
+            onClick={async e=>{
+              e.stopPropagation();setMapExportError('');setMapExportState('exporting');
+              try{
+                if(typeof window.exportGame3DMap!=='function')
+                  throw Error('Map scene exporter is not ready. Enter Wolfveil and try again.');
+                await window.exportGame3DMap({download:true});
+                setMapExportState('ready');
+              }catch(error){
+                setMapExportError(error?.message||'Map export failed');
+                setMapExportState('error');
+              }
+            }}>
+            {mapExportState==='exporting'?'Preparing map files…':'Export full map · GLB + code'}
+          </button>
+          {mapExportState==='error' && <p role="alert"
+            className="mt-2 rounded-md bg-slate-950/95 p-2 text-xs text-amber-200">
+            {mapExportError}
+          </p>}
+        </div>
+      )}
       {!entryMode&&(armorLayerError||avatarConfig.game3d_armor_visual_warnings?.length>0)&&(
         <div role="status" aria-live="polite"
           className="absolute bottom-28 left-3 z-[22] max-w-[min(360px,82vw)] rounded-lg border border-amber-300/35 bg-slate-950/85 px-3 py-2 text-xs text-amber-100 pointer-events-none">
