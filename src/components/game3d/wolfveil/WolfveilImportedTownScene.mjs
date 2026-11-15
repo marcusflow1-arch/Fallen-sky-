@@ -10,6 +10,7 @@ import {createWolfveilTownWater} from './WolfveilImportedTownWater.mjs';
 import {installWolfveilTownTree,isWolfveilTownTreeMesh,removeWolfveilTownCentreTree} from './WolfveilImportedTownTree.mjs';
 import {critiqueAndEnhanceWolfveilTown,buildWolfveilTownCanopyDressing} from './WolfveilImportedTownCritique.mjs';
 import {clearWolfveilImportedTownInterior} from './WolfveilImportedTownInteriorClearance.mjs';
+import {clearWolfveilTownCenterRisers} from './WolfveilTownCenterRiserRemoval.mjs';
 export const DEFAULT_WOLFVEIL_TOWN_ASSET='https://media.base44.com/files/public/6ab42219a52fd34656a53b37/461493b8c_game3d_town_assembled.glb';
 
 // How each mesh of the model takes part in collision, by its Blender name.
@@ -72,6 +73,10 @@ export function installWolfveilImportedTown(scene,{url=DEFAULT_WOLFVEIL_TOWN_ASS
    plazaTreeClearOfHouses=true;
    // Keep walkable tile tops, remove protruding box walls and undersides.
    critiquePass=critiqueAndEnhanceWolfveilTown(town,WOLFVEIL_IMPORTED_TOWN_FLOOR_Y);
+   // Remove leftover thin stair-walls on paving/stone near the central tree.
+   // Run AFTER tile-top repair but BEFORE collision is baked; the floor,
+   // central planter and town square perimeter must remain untouched.
+   root.userData.cloneTownCenterRiserCleanup=clearWolfveilTownCenterRisers(town);
    // Clean-town preview: keep Blender lawn surfaces, but not decorative 3D
    // blade instances growing from the interior ground.
    // Bake floors and walls from the placed triangles themselves.
