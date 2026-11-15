@@ -34,6 +34,7 @@ import IncomingRequestToast from '../components/game3d/social/IncomingRequestToa
 import WorldChatPanel from '../components/game3d/social/WorldChatPanel';
 import EchoChronicleOverlay from '../components/game3d/social/EchoChronicleOverlay';
 import ChronicleBlueprintLibrary from '../components/game3d/chronicle/ChronicleBlueprintLibrary';
+import MiniGamesHub from '../components/game3d/minigames/MiniGamesHub';
 import CharacterVaultSync from '../components/game3d/character/CharacterVaultSync';
 import DuelSystem from '../components/game3d/social/DuelSystem';
 import DuelMarkers from '../components/game3d/social/DuelMarkers';
@@ -705,6 +706,10 @@ export default function GameView() {
           200-slot inventory and the separate narrative Echo Chronicle. */}
       <ChronicleBlueprintLibrary suppressed={services.active || services.expanded ||
         storeOpen || progressionOpen || pauseMenuOpen} />
+      {/* Small third icon next to the two Chronicle controls. Signups and
+          spectators are server-verified; games themselves are not yet playable. */}
+      <MiniGamesHub userId={user?.id} suppressed={services.active || services.expanded ||
+        storeOpen || progressionOpen || pauseMenuOpen || friendsListOpen || clanOverlayOpen} />
       <Game3DCompetitionInbox enabled={phase==='world'} userId={user?.id} />
       <DuelSystem userId={user?.id} />
       <DuelMarkers localUserId={user?.id} />
