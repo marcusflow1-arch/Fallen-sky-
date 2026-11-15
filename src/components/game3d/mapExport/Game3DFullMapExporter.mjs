@@ -111,14 +111,16 @@ export function snapshotGame3DMap(scene,THREE,{includeHidden=false,includeSkinne
   if(!root.children.length)throw Error('No loaded map geometry available to export');
   return {root,stats};
 }
+let currentMapDownloadDialog=null;
 // Async GLTFExporter resolution no longer has a browser user-activation token.
 // Never fire two synthetic anchor.click() calls: Chromium/Safari often suppress
 // one or both. These links are real, user-initiated individual downloads.
 export function showGame3DMapDownloads({glb,codeBlob,name,stats}){
   if(typeof document==='undefined'||typeof URL.createObjectURL!=='function')
     throw Error('Download links require a browser');
-  const existing=document.getElementById('game3d-map-export-downloads');
-  existing?.remove();
+  // Repeated exports must revoke the previous world's potentially huge blobs.
+  currentMapDownloadDialog?.close?.();
+  document.getElementById('game3d-map-export-downloads')?.remove();
   const safeName=String(name).replace(/[^a-z0-9._-]/gi,'_')||'Game3D_Map';
   const glbURL=URL.createObjectURL(new Blob([glb],{type:'model/gltf-binary'}));
   const codeURL=URL.createObjectURL(codeBlob);
@@ -151,6 +153,7 @@ export function showGame3DMapDownloads({glb,codeBlob,name,stats}){
   const teardown=()=>{
     if(disposed)return;disposed=true;panel.remove();
     URL.revokeObjectURL(glbURL);URL.revokeObjectURL(codeURL);
+    if(currentMapDownloadDialog?.close===teardown)currentMapDownloadDialog=null;
   };
   close.addEventListener('click',teardown);
   panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();teardown();}});
@@ -159,7 +162,8 @@ export function showGame3DMapDownloads({glb,codeBlob,name,stats}){
   content.append(heading,description,details,links,close);
   panel.append(content);document.body.appendChild(panel);
   close.focus();
-  return {close:teardown,glbURL,codeURL};
+  currentMapDownloadDialog={close:teardown,glbURL,codeURL};
+  return currentMapDownloadDialog;
 }
 export async function exportGame3DFullMap({
   scene=typeof window!=='undefined'?window.__gw3dScene:null,
