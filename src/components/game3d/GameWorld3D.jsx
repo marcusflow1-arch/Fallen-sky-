@@ -2031,6 +2031,13 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
             }else showCombatNotice((action.open?'Opened ':'Closed ')+action.name);
             return;
           }
+          const passage=suigenRuntime?.mountains?.interact(model.position);
+          if(passage?.target){
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('game3dPortalTravel',
+              {detail:passage}));
+            return;
+          }
         }else{
           const door=wolfveilVillage?.interactPalace(model.position);
           if(door){e.preventDefault();return;}
@@ -3117,9 +3124,11 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
             window.__axePauseMenuOpen||window.__axeDialogueOpen,
         });
         stationRuntime.focusCamera(delta);
-        if(suigenActive&&suigenRuntime?.district){
-          suigenRuntime.district.update(delta);
-          const near=suigenRuntime.district.nearestInteraction(model.position);
+        if(suigenActive&&suigenRuntime){
+          suigenRuntime.district?.update(delta);
+          suigenRuntime.mountains?.update(delta);
+          const near=suigenRuntime.district?.nearestInteraction(model.position)
+            ||suigenRuntime.mountains?.nearestInteraction(model.position);
           const text=near&&!window.__axeUiModalOpen&&!window.__axePauseMenuOpen
             ?'E · '+near.label:'';
           if(text!==previousTownPrompt){
