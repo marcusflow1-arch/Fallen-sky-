@@ -640,7 +640,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const groundRaycaster = new THREE.Raycaster();
     const downVec = new THREE.Vector3(0, -1, 0);
     /** Returns terrain Y at (x,z), or null if no hit. */
-    const sampleGroundY = (x, z) => {
+    const sampleGroundY = (x, z, referenceY=null) => {
       const terrain=activeGroundMeshes();
       if (terrain.length === 0) return null;
       // Wolfveil mountains exceed the old 50m ray origin. Cast from above
@@ -648,6 +648,12 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       groundRaycaster.set(new THREE.Vector3(x, region === 'wolfveil' ? 1500 : 50, z), downVec);
       const hits = groundRaycaster.intersectObjects(terrain, true);
       if(!hits.length)return null;
+      // Select a floor reachable from the current feet, not the highest
+      // upstairs floor above the character's head.
+      if(suigenActive&&Number.isFinite(referenceY)){
+        const reachable=hits.find(hit=>hit.point.y<=referenceY+.72);
+        if(reachable)return reachable.point.y;
+      }
       // The old town's analytic floor belongs ONLY to the Classic map; it
       // would otherwise make the new import's roads float above the ground.
       return suigenActive?hits[0].point.y:
@@ -805,6 +811,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         // and meadows only AFTER both scene shards are ready to render.
         suigenGroundMeshes=suigenRuntime.walkables;
         suigenRuntime.setVisible(true);
+        if(suigenRuntime.upgradeError)
+          showCombatNotice('Dominion loaded, but its new town failed to build; Classic remains available.');
         for(const root of classicWorldRoots)root.visible=false;
         suigenActive=true;
         atomicLook?.setEnabled(false); // avoid overlapping old grass
@@ -820,6 +828,12 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const onWorldVariantChange=event=>{
       void applyWorldVariant(event?.detail?.variant);
     };
+    const townPrompt=document.createElement('div');
+    townPrompt.setAttribute('role','status');
+    townPrompt.className='suigen-town-interaction-hint';
+    townPrompt.style.cssText='position:absolute;left:50%;bottom:18%;transform:translateX(-50%);pointer-events:none;z-index:78;display:none;padding:7px 13px;border:1px solid #d3ac7f8a;background:#12202cee;color:#f5e7cf;border-radius:7px;font:13px Georgia,serif;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis';
+    renderer.domElement.parentElement?.appendChild(townPrompt);
+    let previousTownPrompt='';
     window.addEventListener(WORLD_VARIANT_EVENT,onWorldVariantChange);
     void applyWorldVariant(readWolfveilWorldVariant(window.localStorage));
     // Explicit, opt-in clone map export. Captures the SAME assembled scene
@@ -2007,8 +2021,20 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       // E operates its genuine front, balcony sliders and attic door; if no
       // mansion door is nearby, the existing NPC/loot interaction is unchanged.
       if(k==='e'&&!e.repeat&&model){
-        const door=wolfveilVillage?.interactPalace(model.position);
-        if(door){e.preventDefault();return;}
+        if(suigenActive){
+          const action=suigenRuntime?.district?.interact(model.position);
+          if(action){
+            e.preventDefault();
+            if(action.kind==='merchant'){
+              window.dispatchEvent(new CustomEvent('game3dSuigenMerchantOpen',
+                {detail:{merchantId:action.merchantId}}));
+            }else showCombatNotice((action.open?'Opened ':'Closed ')+action.name);
+            return;
+          }
+        }else{
+          const door=wolfveilVillage?.interactPalace(model.position);
+          if(door){e.preventDefault();return;}
+        }
       }
       keys.current[k] = true;
       // Game 2/Luna camera fallback: arrow keys steer camera yaw/pitch.
@@ -2487,9 +2513,15 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     }
     // Client presentation collision uses the same tree radii as the
     // forest mesh; this does not pretend to replace server pathfinding.
-    forestBiome?.resolveCollision(model.position, .62);
-    wolfveilVillage?.resolveBuildingCollision(model.position,.62,
-      {x:fromX,y:model.position.y,z:fromZ},{player:true});importedSpawnTown?.resolveCollision(model.position,{x:fromX,z:fromZ}); // town walls and ledges
+    if(suigenActive){
+      suigenRuntime?.district?.resolveCollision(model.position,
+        {x:fromX,z:fromZ},mounted?.85:.62);
+    }else{
+      forestBiome?.resolveCollision(model.position, .62);
+      wolfveilVillage?.resolveBuildingCollision(model.position,.62,
+        {x:fromX,y:model.position.y,z:fromZ},{player:true});
+      importedSpawnTown?.resolveCollision(model.position,{x:fromX,z:fromZ});
+    }
     lunarDungeon?.resolveCollision(model.position,{x:fromX,z:fromZ},mounted?.85:.62);
     astralDungeon?.resolveCollision(model.position,{x:fromX,z:fromZ},mounted?.85:.62);
     lunarGate?.resolveCollision(model.position,{x:fromX,z:fromZ},mounted?.85:.62);
@@ -2876,21 +2908,21 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
           // Player's feet follow Luna's supported entrance, indoor stairs,
           // upper gallery and roof terrace. Never sample the roof from above
           // or snap an upstairs player down to Wolfveil's hillside.
-          const palaceY=wolfveilVillage?.playerPalaceGroundY(model.position);
-          const gy=palaceY??sampleGroundY(model.position.x,model.position.z);
+          const palaceY=suigenActive?null:wolfveilVillage?.playerPalaceGroundY(model.position);
+          const gy=palaceY??sampleGroundY(model.position.x,model.position.z,model.position.y);
           if (gy !== null) model.position.y = gy;
           if(playerAnim)playerAnim.updateMotion(model,delta,gy??model.position.y,(dx,dz)=>{
             if(!dedicatedMode && !tornadoRes.lockMovement && !bossSpecialLock && !window.__axeTileInspectionEditing)
               moveWorldActor(model,dx,dz,mounted);
-            return wolfveilVillage?.playerPalaceGroundY(model.position)
-              ?? sampleGroundY(model.position.x,model.position.z) ?? model.position.y;
+            return (suigenActive?null:wolfveilVillage?.playerPalaceGroundY(model.position))
+              ?? sampleGroundY(model.position.x,model.position.z,model.position.y) ?? model.position.y;
           });
         } else if (playerAnim && !bossFallActive) {
           playerAnim.updateMotion(model,delta,model.position.y-(playerAnim.getJumpOffset?.()||0),(dx,dz)=>{
             if(!dedicatedMode && !tornadoRes.lockMovement && !bossSpecialLock && !window.__axeTileInspectionEditing)
               moveWorldActor(model,dx,dz,mounted);
-            return wolfveilVillage?.playerPalaceGroundY(model.position)
-              ?? sampleGroundY(model.position.x,model.position.z) ?? model.position.y;
+            return (suigenActive?null:wolfveilVillage?.playerPalaceGroundY(model.position))
+              ?? sampleGroundY(model.position.x,model.position.z,model.position.y) ?? model.position.y;
           });
         }
         // Tornado lift is applied after the feet-to-ground pass so the funnel
@@ -3085,6 +3117,18 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
             window.__axePauseMenuOpen||window.__axeDialogueOpen,
         });
         stationRuntime.focusCamera(delta);
+        if(suigenActive&&suigenRuntime?.district){
+          suigenRuntime.district.update(delta);
+          const near=suigenRuntime.district.nearestInteraction(model.position);
+          const text=near&&!window.__axeUiModalOpen&&!window.__axePauseMenuOpen
+            ?'E · '+near.label:'';
+          if(text!==previousTownPrompt){
+            previousTownPrompt=text;townPrompt.textContent=text;
+            townPrompt.style.display=text?'':'none';
+          }
+        }else if(previousTownPrompt){
+          previousTownPrompt='';townPrompt.style.display='none';
+        }
         // Sweep from character-front three-quarter portrait to real Game 2
         // follow camera, clipping against the same actual terrain geometry.
         if(entryCameraReleased)entryCamera.update(delta,{camera,model,clipAgainstTerrain:pose=>playerCameraSystem.clipAgainstTerrain(pose)});
@@ -4450,6 +4494,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       worldMapUnloaded=true;
       worldMapSwitchNumber++;
       worldMapAbort.abort();
+      townPrompt.remove();
       window.removeEventListener(WORLD_VARIANT_EVENT,onWorldVariantChange);
       suigenRuntime?.dispose();
       suigenRuntime=null;
