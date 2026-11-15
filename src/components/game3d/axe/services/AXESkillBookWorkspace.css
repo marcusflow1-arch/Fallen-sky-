@@ -628,3 +628,19 @@
  .axe-book-weapon-role{font-size:10px;}
  .axe-book-weapon-slot em{display:none;}
 }
+
+/* Passive skills stay manageable as small horizontal chips in Buffs, instead
+ * of the removed vertical equip-slot column and its nested scrollbar. */
+.axe-book-passive-chips {
+  display:flex;flex:0 0 auto;flex-wrap:wrap;align-items:center;justify-content:flex-start;
+  gap:4px;max-height:62px;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:none;border-bottom:1px solid rgba(242,210,147,.24);padding:0 2px 5px;
+}
+.axe-book-passive-chips::-webkit-scrollbar{display:none;}
+.axe-book-passive-chips button{
+  display:inline-flex;align-items:center;gap:5px;max-width:100%;
+  padding:3px 7px;border:1px solid #f0d4a37a;border-radius:999px;
+  color:#f5e9d4;background:#253b4b7d;font:10px/1.2 Georgia,serif;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.axe-book-passive-chips button:hover{background:#7458398e;border-color:#ffdda1;}
