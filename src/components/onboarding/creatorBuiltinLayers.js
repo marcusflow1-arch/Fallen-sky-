@@ -17,14 +17,25 @@ export function builtinAsset(entry) {
   ...(entry.set?{set:String(entry.set)}:{}),...(entry.hides_hair?{hides_hair:true}:{}),
  };
 }
-// Manifest entries flagged dev_only (a set marked "dev_only" in tools/avatar-armor/armor.config.json, e.g. Crescent Moon)
-// exist only in development builds: a production build never lists, loads or equips them.
+// The creator's catalog remains DEV gated. One exception is rendering the
+// already-equipped item from this character's canonical inventory: its GLB
+// may be loaded for visual parity even in a preview built with NODE_ENV=production.
+// This never grants, sells, drops or lists additional developer equipment.
+// Cache the manifest payload, not a filtered snapshot from the first viewer.
 const isShipped=entry=>isShippedArmorEntry(entry,import.meta.env?.DEV===true);
-export function loadBuiltinLayers(kind) {
- if(!cache.has(kind))cache.set(kind,fetch(FUSED_MANIFESTS[kind]).then(r=>{if(!r.ok)throw Error('manifest '+r.status);return r.json();}).then(json=>({
-  female:(json.female||[]).filter(isShipped).map(builtinAsset),male:(json.male||[]).filter(isShipped).map(builtinAsset),
- })).catch(error=>{cache.delete(kind);throw error;}));
- return cache.get(kind);
+export function loadBuiltinLayers(kind,{equippedIds=[]}={}) {
+ if(!cache.has(kind))cache.set(kind,fetch(FUSED_MANIFESTS[kind])
+   .then(r=>{if(!r.ok)throw Error('manifest '+r.status);return r.json();})
+   .catch(error=>{cache.delete(kind);throw error;}));
+ const equipped=new Set(kind==='armor'?(equippedIds||[]):[]);
+ return cache.get(kind).then(json=>{
+  const visible=entry=>isShipped(entry)||
+    (kind==='armor'&&entry.dev_only===true&&equipped.has(entry.id));
+  return {
+   female:(json.female||[]).filter(visible).map(builtinAsset),
+   male:(json.male||[]).filter(visible).map(builtinAsset),
+  };
+ });
 }
 // Layers for the body in this appearance ({hair:[], tattoo:[], armor:[]}); empty for v5 bodies.
 export function useBuiltinLayers(appearance) {
