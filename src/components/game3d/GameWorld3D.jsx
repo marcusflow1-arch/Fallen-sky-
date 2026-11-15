@@ -503,6 +503,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const inkLook = createInkWashLook({ renderer, guard: rendererGuard, level: resolveInkLevel(), palette: resolveInkPalette() });
     let livingInkWorld = null; // initialized only after the Game 3D Wolfveil roots exist
     let atomicLook = null; // clone-only safe global vegetation material style
+    let suigenActive=false; // set before any Graphics listeners can fire
     window.__gw3dInkLook = inkLook; // the bench and reviews read and set its level
     const onGraphicsSettings = () => {
       inkLook.setPalette(resolveInkPalette());
@@ -633,7 +634,6 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
 
     // LOW-POLY ENVIRONMENT MAP — bundle URLs from admin AssetFile manifest. groundMeshes used for raycast snapping.
     const groundMeshes = [];           // classic Wolfveil terrain raycasts
-    let suigenActive=false;
     let suigenGroundMeshes=[];
     const activeGroundMeshes=()=>suigenActive&&suigenGroundMeshes.length
       ?suigenGroundMeshes:groundMeshes;
