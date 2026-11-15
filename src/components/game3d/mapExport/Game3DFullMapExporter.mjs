@@ -66,7 +66,12 @@ export function snapshotGame3DMap(scene,THREE,{includeHidden=false,includeSkinne
     skippedHidden:0,skippedSkinned:0,skippedExcluded:0,shaderFallbacks:0};
   scene.traverse(node=>{
     if(!node.geometry||!(node.isMesh||node.isLine||node.isPoints))return;
-    if(!includeHidden&&!visibleWithin(node,scene)){stats.skippedHidden++;return;}
+    const materialHidden=Array.isArray(node.material)
+      ?node.material.length>0&&node.material.every(m=>m?.visible===false)
+      :node.material?.visible===false;
+    if(!includeHidden&&(!visibleWithin(node,scene)||materialHidden)){
+      stats.skippedHidden++;return;
+    }
     if(!includeSkinned&&node.isSkinnedMesh){stats.skippedSkinned++;return;}
     if(exclude(node)){stats.skippedExcluded++;return;}
     const material=materialForExport(THREE,node.material,stats);
