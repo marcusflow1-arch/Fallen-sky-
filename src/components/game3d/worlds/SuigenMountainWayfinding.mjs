@@ -16,6 +16,8 @@ export const SUIGEN_CAVE_PORTALS=Object.freeze([
     x:-440,z:420,target:'lunar-cave',returnToGate:true},
   {id:'astral-trial',name:'Celestial Trial Portal',
     x:197,z:224,target:'astral-dungeon',returnToGate:'astral'},
+  {id:'vortex-lake',name:'Water Tornado Gateway',
+    x:205,z:390,target:'lunar-cave',returnToGate:true},
 ]);
 
 const boulderShape=new THREE.DodecahedronGeometry(1,1);
@@ -120,8 +122,54 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
     }
   }
   // Travel markers are genuine world objects, not fake disconnected map pins.
+  // A lake-sized liquid-glass funnel, rooted in the ORIGINAL Suigen mountain
+  // terrain rather than Classic Wolfveil's incompatible 82.6m elevation.
+  const waterOrigin={x:205,z:390,y:(ground(205,390)??26)+.20};
+  const waterRoot=new THREE.Group();
+  waterRoot.name='Suigen_Mountain_Water_Tornado_Real_Terrain';
+  waterRoot.position.set(waterOrigin.x,waterOrigin.y,waterOrigin.z);
+  root.add(waterRoot);
+  const waterMaterial=new THREE.MeshPhysicalMaterial({
+    color:0x156c9b,metalness:.12,roughness:.21,transparent:true,opacity:.78,
+    clearcoat:.8,clearcoatRoughness:.15,side:THREE.DoubleSide,depthWrite:false,
+  });
+  const surface=new THREE.Mesh(new THREE.CircleGeometry(28,96),waterMaterial);
+  surface.rotation.x=-Math.PI/2;
+  surface.position.y=.08;surface.name='Suigen_Vortex_Water_Surface';
+  waterRoot.add(surface);
+  const vortexEnergy=new THREE.Group();vortexEnergy.name='Suigen_Liquid_Glass_Vortex_Spirals';
+  waterRoot.add(vortexEnergy);
+  const vortexMats=[
+    new THREE.MeshBasicMaterial({color:0x5bc8e9,transparent:true,opacity:.63,depthWrite:false}),
+    new THREE.MeshBasicMaterial({color:0x8399ed,transparent:true,opacity:.52,depthWrite:false}),
+  ];
+  for(let v=0;v<12;v++){
+    const pts=[],phase=v*Math.PI*2/12;
+    for(let i=0;i<=70;i++){
+      const t=i/70,a=phase+t*Math.PI*4.5,r=18*(1-t)+1.6;
+      pts.push(new THREE.Vector3(Math.cos(a)*r,1.1+t*20,Math.sin(a)*r));
+    }
+    const geom=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),105,.095,5,false);
+    const spiral=new THREE.Mesh(geom,vortexMats[v%2]);
+    vortexEnergy.add(spiral);
+  }
+  const currentRing=new THREE.Mesh(new THREE.TorusGeometry(23,.24,8,100),
+    vortexMats[0]);
+  currentRing.rotation.x=Math.PI/2;currentRing.position.y=.25;
+  vortexEnergy.add(currentRing);
+  // Water edge rocks visually ground the vortex in the mountain basin.
+  for(let i=0;i<24;i++){
+    const a=i*Math.PI*2/24,r=27.2+(i%3)*.65;
+    const x=waterOrigin.x+Math.cos(a)*r,z=waterOrigin.z+Math.sin(a)*r;
+    const y=ground(x,z)??waterOrigin.y;
+    const edge=new THREE.Mesh(boulderShape,i%3?stone:rockDark);
+    edge.position.set(x,y+.35,z);edge.scale.set(2.7,1.25,1.5);
+    edge.rotation.y=a;root.add(edge);stones.push(edge);
+  }
+
   const portalMeshes=[];
   for(const portal of SUIGEN_CAVE_PORTALS){
+    if(portal.id==='vortex-lake')continue;
     const y=ground(portal.x,portal.z)??0;
     const group=new THREE.Group();
     group.position.set(portal.x,y,portal.z);
@@ -163,7 +211,8 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
     },
     interact(position){
       const hit=this.nearestInteraction(position);
-      return hit?{target:hit.portal.target,sourcePortal:'suigen',
+      return hit?{target:hit.portal.target,
+        sourcePortal:hit.portal.id==='vortex-lake'?'vortex':'suigen',
         returnToGate:hit.portal.returnToGate}:null;
     },
     update(dt){
@@ -172,11 +221,16 @@ export function createSuigenMountainWayfinding({worldRoot,terrainRoot}={}){
         lens.material.opacity=.36+.1*Math.sin(time*2.4);
         key.rotation.y+=dt*.7;
       }
+      vortexEnergy.rotation.y=time*.33;
+      surface.rotation.z=time*.015;
     },
     dispose(){
       if(disposed)return;disposed=true;
       root.parent?.remove(root);
       for(const mesh of treads)mesh.geometry.dispose();
+      surface.geometry.dispose();waterMaterial.dispose();
+      vortexEnergy.traverse(node=>{if(node.isMesh)node.geometry.dispose();});
+      vortexMats.forEach(m=>m.dispose());
       for(const {lens} of portalMeshes){
         lens.geometry.dispose();lens.material.dispose();
       }
