@@ -19,7 +19,7 @@ const CHANNEL_STYLE = {
   party: { label: 'Party', tag: 'text-cyan-200/80', name: 'text-cyan-100' },
 };
 
-export default function WorldChatPanel({ userId, suppressed = false }) {
+export default function WorldChatPanel({ userId, suppressed = false, showDock = true }) {
   const [party, setParty] = useState(partyStore.get());
   const [tab, setTab] = useState('world');
   const [lines, setLines] = useState({ world: [], party: [] });
@@ -77,6 +77,12 @@ export default function WorldChatPanel({ userId, suppressed = false }) {
     });
   }, [userId, partyChannel, addLines]);
 
+  // Opening chat from Settings uses the exact same real world/party channel.
+  useEffect(() => {
+    const open = () => { if (!suppressed) setTyping(true); };
+    window.addEventListener('game3dOpenWorldChat',open);
+    return () => window.removeEventListener('game3dOpenWorldChat',open);
+  },[suppressed]);
   // Enter (outside any field) opens the chat
   useEffect(() => {
     const onKey = (e) => {
@@ -114,7 +120,7 @@ export default function WorldChatPanel({ userId, suppressed = false }) {
     else if (e.key === 'Escape') { e.preventDefault(); close(); }
   };
 
-  if (!userId) return null;
+  if (!userId || (!showDock && !typing)) return null;
   const shown = (lines[tab] || []).filter(line => !blockedIds.has(line.sender_id));
   const style = CHANNEL_STYLE[tab];
   return (
