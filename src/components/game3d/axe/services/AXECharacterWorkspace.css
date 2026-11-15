@@ -283,3 +283,52 @@
   }
   .axe-char-root .axe-char-inline-attribute .axe-char-attribute-buttons button {min-width:21px;padding:4px 2px;font-size:10px}
 }
+
+
+/* Merged Character tab: retain original character model/equipment/stats logic,
+ * but allow the outfit rail to use the left column of the Appearance frame.
+ * Do not mount a second brand/header, model preview or equipment backend. */
+.axe-service-workspace--character .axe-app-unified-character-panel > .axe-char-root--embedded {
+  position:relative;flex:1 1 auto;
+  display:flex;flex-direction:column;
+  width:100%;max-width:none;height:100%;min-height:0;
+  min-width:0;max-height:100%;padding:0;margin:0;gap:0;overflow:hidden;
+}
+.axe-service-workspace--character .axe-char-root--embedded .axe-char-layout {
+  display:grid;grid-template-columns:minmax(280px,1.15fr) minmax(280px,.90fr);
+  gap:clamp(5px,.8vw,12px);flex:1 1 auto;
+  min-height:0;min-width:0;height:100%;
+  overflow:hidden;
+}
+.axe-service-workspace--character .axe-char-root--embedded .axe-char-model-stage {
+  min-width:0;min-height:0;height:100%;grid-row:1;grid-column:1;
+}
+.axe-service-workspace--character .axe-char-root--embedded .axe-char-stats-column {
+  min-height:0;min-width:0;overflow-y:auto;
+  grid-row:1;grid-column:2;
+}
+.axe-service-workspace--character .axe-char-root--embedded .axe-char-live-stats {
+  min-height:0;
+}
+@media(max-width:1150px) {
+  .axe-service-workspace--character .axe-char-root--embedded .axe-char-layout {
+    grid-template-columns:minmax(230px,1fr) minmax(240px,1fr);
+    gap:6px;
+  }
+}
+@media(max-width:830px) {
+  .axe-service-workspace--character .axe-app-unified-character-panel > .axe-char-root--embedded {
+    overflow-y:auto;overflow-x:hidden;
+  }
+  .axe-service-workspace--character .axe-char-root--embedded .axe-char-layout {
+    display:flex;flex-direction:column;
+    height:auto;min-height:0;overflow:visible;
+  }
+  .axe-service-workspace--character .axe-char-root--embedded .axe-char-model-stage {
+    flex:0 0 auto;height:clamp(340px,47vh,570px);
+    min-height:340px;
+  }
+  .axe-service-workspace--character .axe-char-root--embedded .axe-char-stats-column {
+    overflow:visible;flex:0 0 auto;
+  }
+}
