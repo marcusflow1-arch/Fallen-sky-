@@ -20,6 +20,7 @@ import { getCompanionById, createCompanionLoadingManager } from './companionData
 import { loadCompanionFolderClips } from './companionAnimationLoader';
 import { prepareMountAnimationClips } from './character/mountAnimations.mjs';
 import {createFactionThreeMountRig} from './character/factionThreeMountRig.mjs';
+import {createFactionThreeFacingFrame} from './character/factionThreeMountFacing.mjs';
 import { createMountedRiderPose } from './player/mountedRiderPose.mjs';
 
 // Cache the loaded companion model + clips per-definition so we don't re-fetch
@@ -62,7 +63,7 @@ const loadCompanionAssets = async (companionDef) => {
     if (!clips.length && !companionDef.animationSource) {
       try { clips = await loadCompanionFolderClips(fbxLoader); } catch { clips = []; }
     }
-    return { root, clips };
+    return { root, clips, definition: effectiveDefinition };
   })();
   companionCache.set(companionDef.id, pending);
   try { return await pending; }
@@ -91,8 +92,12 @@ export function createRemoteCompanionManager(scene, {
     catch (e) { console.error('[RemoteCompanion] load error', e); return null; }
     if (!assets?.root) return null;
 
-    // Per-player clone — SkeletonUtils handles SkinnedMesh skeleton cloning
-    const group = SkeletonUtils.clone(assets.root);
+    // Per-player clone — SkeletonUtils handles SkinnedMesh skeleton cloning.
+    // Faction 3's visual is rotated independently of its navigation frame,
+    // so all remote packets use the same +Z gameplay heading as local Play.
+    const visual = SkeletonUtils.clone(assets.root);
+    const renderDefinition = assets.definition || def; // safe on legacy GLB fallback
+    const {worldRoot:group} = createFactionThreeFacingFrame(visual,renderDefinition);
     const box = new THREE.Box3().setFromObject(group);
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
@@ -100,7 +105,7 @@ export function createRemoteCompanionManager(scene, {
     group.scale.setScalar(compScale);
     // Each remote rider gets an INDEPENDENT cloned skeleton and secondary
     // spring. Never mutate the cached GLB or attach to the remote player.
-    const secondaryRig=createFactionThreeMountRig(group,def);
+    const secondaryRig=createFactionThreeMountRig(visual,renderDefinition);
 
     group.traverse((node) => {
       if (node.isMesh) {
@@ -122,7 +127,7 @@ export function createRemoteCompanionManager(scene, {
     scene.add(group);
 
     // Bind clips
-    const mixer = new THREE.AnimationMixer(group);
+    const mixer = new THREE.AnimationMixer(visual);
     const findClip = (substr) => {
       if (!substr) return null;
       const lc = substr.toLowerCase();
@@ -137,9 +142,10 @@ export function createRemoteCompanionManager(scene, {
     if (idleAction) idleAction.reset().fadeIn(0.2).play();
 
     return {
-      group, mixer, idleAction, walkAction, runAction, secondaryRig, definition: def, ring,
+      group, mixer, idleAction, walkAction, runAction, secondaryRig, definition: renderDefinition, ring,
       current: 'idle',
       hasNetworkPosition: false,
+      lastMovingAt: -Infinity,
       targetPos: new THREE.Vector3(),
       targetYaw: 0,
       mounted: false,
@@ -229,14 +235,23 @@ export function createRemoteCompanionManager(scene, {
       if (Number.isFinite(d.yaw)) inst.targetYaw = d.yaw;
       inst.mounted = !!d.mounted;
       if (Number.isFinite(d.level)) inst.level = d.level;
-      inst.lastMotionAt = performance.now();
-      // Older owner packets reuse the player's animation while the animal is
-      // following independently. Position deltas are the pet's actual motion.
-      const hasAnimation = ['idle', 'walk', 'run'].includes(d.anim);
-      const moving = inst.mounted && hasAnimation ? d.anim === 'run' || d.anim === 'walk' : companionMoved;
-      if (hasPosition) inst.hasNetworkPosition = true;
-      const target = moving ? 'run' : 'idle';
-      setAnim(inst, target);
+      const now=performance.now();
+      inst.lastMotionAt=now;
+      // On the first packet place the mount at its actual network location.
+      // Never visibly slide a newly spawned Faction 3 animal from world 0,0.
+      if (hasPosition && !inst.hasNetworkPosition) {
+        inst.group.position.copy(inst.targetPos);
+        inst.group.rotation.y=inst.targetYaw;
+      }
+      // Older owner packets reuse player animation while the unmounted animal
+      // follows independently. A stationary or duplicated network packet
+      // must not restart the run/idle crossfade on every update.
+      const hasAnimation=['idle','walk','run'].includes(d.anim);
+      const moving=inst.mounted && hasAnimation ? d.anim==='run'||d.anim==='walk' : companionMoved;
+      if (moving) inst.lastMovingAt=now;
+      if (hasPosition) inst.hasNetworkPosition=true;
+      const holdFollowMotion=!inst.mounted && now-inst.lastMovingAt<240;
+      setAnim(inst,moving || holdFollowMotion ? 'run' : 'idle');
     });
   };
 
@@ -260,9 +275,14 @@ export function createRemoteCompanionManager(scene, {
       // one dropped WebRTC packet must not leave a permanent running loop.
       if(inst.lastMotionAt&&performance.now()-inst.lastMotionAt>850)
         setAnim(inst,'idle');
-      inst.group.position.lerp(inst.targetPos, 0.5);
-      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), inst.targetYaw);
-      inst.group.quaternion.slerp(q, 0.4);
+      // Exponential damping keeps the same behavior at 30/60/120 fps.
+      // A large reconnect/teleport correction snaps instead of streaking.
+      const step=Math.min(.10,Math.max(0,Number(delta)||0));
+      if (inst.hasNetworkPosition && inst.group.position.distanceToSquared(inst.targetPos)>18*18)
+        inst.group.position.copy(inst.targetPos);
+      else inst.group.position.lerp(inst.targetPos,1-Math.exp(-12*step));
+      const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),inst.targetYaw);
+      inst.group.quaternion.slerp(q,1-Math.exp(-14*step));
       inst.secondaryRig?.update(delta); // post-network, post-mixer mount-space only
     });
   };
