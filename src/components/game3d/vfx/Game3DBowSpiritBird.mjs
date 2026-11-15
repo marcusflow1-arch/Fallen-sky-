@@ -250,13 +250,23 @@ export function createGame3DBowAimVisuals({scene,container,showDot=true}={}){
     overlay.result.style.color='#ffe8a2';
     resultSeconds=.95;
   };
+  let lastChargePercent=null;
   const setCharge=(status)=>{
     if(disposed||!overlay)return;
     const active=!!status;
     const percent=Math.max(0,Math.min(100,Number(status?.percent)||0));
-    overlay.chargeTrack.style.opacity=active?'1':'0';
-    overlay.chargeLabel.style.opacity=active?'1':'0';
-    if(!active)return;
+    if(!active){
+      if(lastChargePercent!==null){
+        overlay.chargeTrack.style.opacity='0';
+        overlay.chargeLabel.style.opacity='0';
+        lastChargePercent=null;
+      }
+      return;
+    }
+    if(lastChargePercent===percent)return; // avoid per-frame DOM writes
+    lastChargePercent=percent;
+    overlay.chargeTrack.style.opacity='1';
+    overlay.chargeLabel.style.opacity='1';
     overlay.chargeFill.style.width=percent+'%';
     overlay.chargeLabel.textContent=status.full?'FULL DRAW · 100%':'CHARGE · '+percent+'%';
     overlay.chargeLabel.style.color=status.full?'#ffe7a4':'#b9efff';
