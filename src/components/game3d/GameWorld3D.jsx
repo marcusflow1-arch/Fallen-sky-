@@ -747,8 +747,13 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     const exportLiveGame3DMap = async ({allowPartialAssets=false,...options}={}) => {
       if (window.__gw3dScene !== scene) throw Error('The Game 3D world is no longer mounted');
       if (region === 'wolfveil' && !allowPartialAssets) {
-        const houses = await wolfveilVillage?.houseModels?.ready;
-        if (!houses) throw Error('Wolfveil house GLB unavailable: refusing incomplete full-map export');
+        // The current map retires legacy housing in some regions; only require
+        // the optional house GLB when residence placements actually exist.
+        const hasResidence=wolfveilVillage?.town?.buildings?.some(b=>b.kind==='residence');
+        if(hasResidence){
+          const houses=await wolfveilVillage?.houseModels?.ready;
+          if(!houses)throw Error('Wolfveil house GLB unavailable: refusing incomplete full-map export');
+        }
         let checks = 0;
         while (importedSpawnTown?.status === 'loading' && checks++ < 120) {
           await new Promise(resolve => setTimeout(resolve, 250));
