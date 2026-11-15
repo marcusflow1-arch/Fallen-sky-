@@ -14,19 +14,19 @@ export function validateGame3DGLB(input){
 // massive GLBs; joining all base64 into one JS string exhausts memory.
 export function game3DMapCodeParts(input,{name='Game3D_Clone_Full_Map',region='wolfveil'}={}){
   const bytes=validateGame3DGLB(input);
-  const output=[\`// Game 3D clone map — complete binary embedded as executable JavaScript.
-export const MAP_NAME=\${JSON.stringify(String(name))};
-export const MAP_REGION=\${JSON.stringify(String(region))};
+  const output=[`// Game 3D clone map — complete binary embedded as executable JavaScript.
+export const MAP_NAME=${JSON.stringify(String(name))};
+export const MAP_REGION=${JSON.stringify(String(region))};
 const PARTS=[
-\`];
+`];
   for(let off=0;off<bytes.byteLength;off+=PART_BYTES){
     const slice=bytes.subarray(off,off+PART_BYTES);
     let binary='';for(let i=0;i<slice.length;i++)binary+=String.fromCharCode(slice[i]);
     output.push(JSON.stringify(btoa(binary)),',\n');
   }
-  output.push(\`];
+  output.push(`];
 export function mapBytes(){
-  const result=new Uint8Array(\${bytes.byteLength});let pos=0;
+  const result=new Uint8Array(${bytes.byteLength});let pos=0;
   for(const part of PARTS){const raw=atob(part);
     for(let i=0;i<raw.length;i++)result[pos++]=raw.charCodeAt(i);
   }
@@ -38,7 +38,7 @@ export async function loadMap(){
   const {GLTFLoader}=await import('three/examples/jsm/loaders/GLTFLoader.js');
   return (await new GLTFLoader().parseAsync(mapGLB(),'')).scene;
 }
-\`);
+`);
   return output;
 }
 export function generateGame3DMapCode(input,options={}){
