@@ -148,6 +148,11 @@ import { buildGrassEnvironment } from './buildGrassEnvironment';
 import {createWolfveilVillage} from './wolfveil/WolfveilScene';
 import {createWolfveilAmbientBirds} from './wolfveil/ambient/WolfveilAmbientBirds.mjs';
 import {createVortexLakeLandmark} from './wolfveil/VortexLakeScene.mjs';
+import {loadSuigenWorld} from './worlds/loadSuigenWorld.mjs';
+import {readWolfveilWorldVariant,saveWolfveilWorldVariant,
+  normalizeWolfveilWorldVariant,WORLD_VARIANT_CLASSIC,WORLD_VARIANT_SUIGEN,
+  WORLD_VARIANT_EVENT,WORLD_VARIANT_STATUS_EVENT}
+  from './worlds/WolfveilWorldVariants.mjs';
 import {VORTEX_LAKE,isVortexLakeWetSurface} from './wolfveil/VortexLakeLayout.mjs';
 import {installWolfveilImportedTown} from './wolfveil/WolfveilImportedTownScene.mjs';
 import {WOLFVEIL_PLAYER_TOWN_SPAWN,wolfveilQuestNpcSpot,insideWolfveilImportedTown} from './wolfveil/WolfveilImportedTownLayout.mjs';
@@ -506,7 +511,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       const g={...cloneUltraGraphics,...readGraphicsSettings()};
       atomicLook?.setQuality(g.quality||'high');
       ambientBirds?.setQuality(g.quality||'high');
-      atomicLook?.setEnabled(g.artStyle==='atomic-ultra-sumi');
+      atomicLook?.setEnabled(g.artStyle==='atomic-ultra-sumi'&&!suigenActive);
     };
     window.addEventListener('graphicsSettingsChanged', onGraphicsSettings);
 
@@ -627,24 +632,34 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     // This intentionally does NOT mount Game 2's separate WebGL arena.
 
     // LOW-POLY ENVIRONMENT MAP — bundle URLs from admin AssetFile manifest. groundMeshes used for raycast snapping.
-    const groundMeshes = [];           // meshes used for terrain raycasts
+    const groundMeshes = [];           // classic Wolfveil terrain raycasts
+    let suigenActive=false;
+    let suigenGroundMeshes=[];
+    const activeGroundMeshes=()=>suigenActive&&suigenGroundMeshes.length
+      ?suigenGroundMeshes:groundMeshes;
     const groundRaycaster = new THREE.Raycaster();
     const downVec = new THREE.Vector3(0, -1, 0);
     /** Returns terrain Y at (x,z), or null if no hit. */
     const sampleGroundY = (x, z) => {
-      if (groundMeshes.length === 0) return null;
+      const terrain=activeGroundMeshes();
+      if (terrain.length === 0) return null;
       // Wolfveil mountains exceed the old 50m ray origin. Cast from above
       // the highest ridge, otherwise walking can find no floor and appear to fall.
       groundRaycaster.set(new THREE.Vector3(x, region === 'wolfveil' ? 1500 : 50, z), downVec);
-      const hits = groundRaycaster.intersectObjects(groundMeshes, true);
-      return hits.length > 0 ? Math.max(hits[0].point.y, importedSpawnTown?.groundY(x, z) ?? -Infinity) : null;
+      const hits = groundRaycaster.intersectObjects(terrain, true);
+      if(!hits.length)return null;
+      // The old town's analytic floor belongs ONLY to the Classic map; it
+      // would otherwise make the new import's roads float above the ground.
+      return suigenActive?hits[0].point.y:
+        Math.max(hits[0].point.y, importedSpawnTown?.groundY(x, z) ?? -Infinity);
     };
     // Aerial reports sample from above the highest peaks rather than the
     // regular player-foot 50m ray origin; this preserves mountain elevations.
     const sampleTileGroundY = (x,z) => {
-      if (!groundMeshes.length) return null;
+      const terrain=activeGroundMeshes();
+      if (!terrain.length) return null;
       groundRaycaster.set(new THREE.Vector3(x, 1500, z), downVec);
-      const hits = groundRaycaster.intersectObjects(groundMeshes, true);
+      const hits = groundRaycaster.intersectObjects(terrain, true);
       return hits.length ? hits[0].point.y : null;
     };
     window.__axeTileInspectionSampleGroundY = sampleTileGroundY;
@@ -744,6 +759,69 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         classifyBlazeBiome({region}),
     });
     window.__gw3dAtomicLook=atomicLook;
+
+    // Clone's visual-world switch. The old terrain and imported houses remain
+    // intact in memory as an instant backup. Quest, NPC, player, multiplayer,
+    // inventory, region and portal state continue on their original systems.
+    const classicWorldRoots=[
+      wolfveilVillage?.world?.group,importedSpawnTown?.root,livingMeadow?.root,
+    ].filter(Boolean);
+    const originalVisibility=new Map(classicWorldRoots.map(root=>[root,root.visible]));
+    let suigenRuntime=null,suigenLoadPromise=null;
+    let worldMapSwitchNumber=0,worldMapUnloaded=false;
+    const worldMapAbort=new AbortController();
+    const showClassic=()=>{
+      suigenActive=false;
+      suigenGroundMeshes=[];
+      suigenRuntime?.setVisible(false);
+      for(const root of classicWorldRoots)
+        root.visible=originalVisibility.get(root)??true;
+      atomicLook?.setEnabled(readGraphicsSettings().artStyle==='atomic-ultra-sumi');
+    };
+    const worldVariantStatus=detail=>{
+      window.dispatchEvent(new CustomEvent(WORLD_VARIANT_STATUS_EVENT,{detail}));
+    };
+    const applyWorldVariant=async choice=>{
+      if(region!=='wolfveil')return;
+      const variant=normalizeWolfveilWorldVariant(choice);
+      const request=++worldMapSwitchNumber;
+      if(variant===WORLD_VARIANT_CLASSIC){
+        showClassic();
+        worldVariantStatus({variant,ready:true});
+        return;
+      }
+      try{
+        if(!suigenRuntime){
+          if(!suigenLoadPromise){
+            suigenLoadPromise=loadSuigenWorld({scene,signal:worldMapAbort.signal})
+              .catch(error=>{suigenLoadPromise=null;throw error;});
+          }
+          const loaded=await suigenLoadPromise;
+          if(worldMapUnloaded){loaded.dispose();return;}
+          suigenRuntime=loaded;
+        }
+        if(worldMapUnloaded||request!==worldMapSwitchNumber)return;
+        // The NEW 2400m GLB is the visible terrain; hide old ground, town
+        // and meadows only AFTER both scene shards are ready to render.
+        suigenGroundMeshes=suigenRuntime.walkables;
+        suigenRuntime.setVisible(true);
+        for(const root of classicWorldRoots)root.visible=false;
+        suigenActive=true;
+        atomicLook?.setEnabled(false); // avoid overlapping old grass
+        worldVariantStatus({variant:WORLD_VARIANT_SUIGEN,ready:true});
+      }catch(error){
+        if(worldMapUnloaded||request!==worldMapSwitchNumber)return;
+        showClassic();
+        saveWolfveilWorldVariant(WORLD_VARIANT_CLASSIC);
+        worldVariantStatus({variant:WORLD_VARIANT_CLASSIC,ready:false,
+          error:error?.message||'The Dominion map assets could not be loaded'});
+      }
+    };
+    const onWorldVariantChange=event=>{
+      void applyWorldVariant(event?.detail?.variant);
+    };
+    window.addEventListener(WORLD_VARIANT_EVENT,onWorldVariantChange);
+    void applyWorldVariant(readWolfveilWorldVariant(window.localStorage));
     // Explicit, opt-in clone map export. Captures the SAME assembled scene
     // seen in play; it never repositions or detaches world objects.
     const exportLiveGame3DMap = async ({allowPartialAssets=false,...options}={}) => {
@@ -4369,6 +4447,13 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       window.removeEventListener('graphicsSettingsChanged', onGraphicsSettings);
       window.removeEventListener('game3dDedicatedMode',onDedicatedMode);
       window.removeEventListener('game3dDedicatedPose',onDedicatedPose);
+      worldMapUnloaded=true;
+      worldMapSwitchNumber++;
+      worldMapAbort.abort();
+      window.removeEventListener(WORLD_VARIANT_EVENT,onWorldVariantChange);
+      suigenRuntime?.dispose();
+      suigenRuntime=null;
+      showClassic();
       atomicLook?.dispose();
       if(window.__gw3dAtomicLook===atomicLook)window.__gw3dAtomicLook=null;
       inkLook.dispose(); if (window.__gw3dInkLook === inkLook) window.__gw3dInkLook = null;
