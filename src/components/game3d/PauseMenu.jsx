@@ -16,6 +16,9 @@ import {readGame3DCommunityHUD,saveGame3DCommunityHUD,GAME3D_COMMUNITY_HUD_EVENT
 import {RENDER_STATS_STORAGE_KEY,isRenderStatsEnabled} from './debug/renderStats';
 import {CLONE_GPU_PROFILE_KEY,CLONE_GPU_PROFILES,readCloneGPUProfile,
   normalizeCloneGPUProfile} from './performance/AdaptiveGraphics.mjs';
+import {readWolfveilWorldVariant,saveWolfveilWorldVariant,
+  WORLD_VARIANT_EVENT,WORLD_VARIANT_STATUS_EVENT}
+  from './worlds/WolfveilWorldVariants.mjs';
 import './PauseMenu.css';
 
 const MENU_ICONS={overview:Gamepad2,audio:AudioLines,controls:Keyboard,
@@ -73,6 +76,8 @@ export default function PauseMenu({
     catch{return game3dPauseGraphicsDefaults(null);}
   });
   const [community,setCommunity]=useState(()=>readGame3DCommunityHUD());
+  const [worldVariant,setWorldVariant]=useState(()=>readWolfveilWorldVariant());
+  const [worldVariantError,setWorldVariantError]=useState('');
   const [presence,setPresence]=useState({status:'unknown',count:null,max:20});
   const [gpuStats,setGpuStats]=useState(()=>
     isRenderStatsEnabled(typeof window==='undefined'?'':window.location.search,
@@ -117,6 +122,8 @@ export default function PauseMenu({
     setCommunity(readGame3DCommunityHUD());
     setGpuStats(isRenderStatsEnabled(window.location.search,window.localStorage));
     setGpuProfile(readCloneGPUProfile(window));
+    setWorldVariant(readWolfveilWorldVariant());
+    setWorldVariantError('');
     // Refresh the same graphics settings written from either entry or in-world.
     try{setGraphics(activateCloneUltraWorldGraphics(localStorage));}
     catch{setGraphics(game3dPauseGraphicsDefaults(null));}
@@ -179,6 +186,21 @@ export default function PauseMenu({
     catch{/* a private-browser quota error must not break the menu */}
     window.dispatchEvent(new CustomEvent('graphicsSettingsChanged',{detail:sanitized}));
   };
+  const changeWorldVariant=next=>{
+    const variant=saveWolfveilWorldVariant(next);
+    setWorldVariant(variant);
+    setWorldVariantError('');
+    window.dispatchEvent(new CustomEvent(WORLD_VARIANT_EVENT,{detail:{variant}}));
+  };
+  useEffect(()=>{
+    const onStatus=event=>{
+      if(event?.detail?.variant)setWorldVariant(event.detail.variant);
+      if(event?.detail?.error)setWorldVariantError(String(event.detail.error));
+      else if(event?.detail?.ready)setWorldVariantError('');
+    };
+    window.addEventListener(WORLD_VARIANT_STATUS_EVENT,onStatus);
+    return ()=>window.removeEventListener(WORLD_VARIANT_STATUS_EVENT,onStatus);
+  },[]);
   const changeCommunity=next=>{
     const saved=saveGame3DCommunityHUD(next);
     setCommunity(saved);
@@ -403,6 +425,21 @@ export default function PauseMenu({
                 </div>
               </div>}
               {view==='graphics'&&<div className="axe3d-pause__settings-grid">
+                <div className="axe3d-pause__surface" data-testid="game3d-world-variant-settings">
+                  <OptionButtons label="World map" value={worldVariant}
+                    items={[{id:'suigen',text:'Dominion of Suigen · New'},
+                      {id:'classic',text:'Wolfveil · Classic Backup'}]}
+                    onPick={changeWorldVariant}/>
+                  <p className="axe3d-pause__help">
+                    Select the upgraded 2,400 m Dominion map, or return to the
+                    unchanged classic Wolfveil environment at any time.
+                    Your saved character, equipment and quest progress are retained.
+                    The new environment loads before the old one is hidden.
+                  </p>
+                  {worldVariantError&&<p role="alert" className="axe3d-pause__help">
+                    Dominion load failed. Classic Wolfveil is still available: {worldVariantError}
+                  </p>}
+                </div>
                 <div className="axe3d-pause__surface">
                   <OptionButtons label="Visual style" value={graphics.artStyle}
                     items={[{id:'original',text:'Classic'},{id:'ink',text:'Sumi-e Ink Wash'},
