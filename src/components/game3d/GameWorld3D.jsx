@@ -771,6 +771,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
     // inventory, region and portal state continue on their original systems.
     const classicWorldRoots=[
       wolfveilVillage?.world?.group,importedSpawnTown?.root,livingMeadow?.root,
+      // The Classic vortex and gates have different elevation than Suigen.
+      vortexLake?.root,lunarGate?.root,astralGate?.root,
     ].filter(Boolean);
     const originalVisibility=new Map(classicWorldRoots.map(root=>[root,root.visible]));
     let suigenRuntime=null,suigenLoadPromise=null;
@@ -2580,7 +2582,7 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
         if(region!==ASTRAL_DUNGEON_REGION)envSystem.update(delta);
         wolfveilVillage?.update(delta,envSystem.getState(),modelRef.current?.position);importedSpawnTown?.update(delta,modelRef.current?.position);
         ambientBirds?.update(delta,modelRef.current?.position,envSystem.getState());
-        vortexLake?.update(delta,null);
+        if(!suigenActive)vortexLake?.update(delta,null);
         livingInkWorld?.update(delta,envSystem.getState());
         playerAnim?.updateAnimation?.(delta);
         if(mixer)mixer.update(delta);
@@ -2611,12 +2613,12 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       forestBiome?.update(delta, envSystem.getState(), modelRef.current?.position);
       wolfveilVillage?.update(delta,envSystem.getState(),modelRef.current?.position);importedSpawnTown?.update(delta,modelRef.current?.position);
       ambientBirds?.update(delta,modelRef.current?.position,envSystem.getState());
-      const vortexTravel=vortexLake?.update(delta,modelRef.current?.position);
+      const vortexTravel=suigenActive?null:vortexLake?.update(delta,modelRef.current?.position);
       if(vortexTravel)
         window.dispatchEvent(new CustomEvent('game3dPortalTravel',{detail:vortexTravel}));
-      if(lunarGate?.update(delta,modelRef.current?.position))
+      if(!suigenActive&&lunarGate?.update(delta,modelRef.current?.position))
         window.dispatchEvent(new CustomEvent('game3dPortalTravel',{detail:{target:LUNAR_CAVE_REGION}}));
-      if(astralGate?.update(delta,modelRef.current?.position))
+      if(!suigenActive&&astralGate?.update(delta,modelRef.current?.position))
         window.dispatchEvent(new CustomEvent('game3dPortalTravel',{detail:{target:ASTRAL_DUNGEON_REGION}}));
       if(lunarDungeon?.update(delta,modelRef.current?.position))
         window.dispatchEvent(new CustomEvent('game3dPortalTravel',{detail:{target:'wolfveil',returnToGate:true}}));
