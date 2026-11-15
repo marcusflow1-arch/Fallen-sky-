@@ -12,7 +12,7 @@ const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{
 const reject=(error:string,status=400)=>json({error},status);
 const fourHours=4*60*60_000;
 const cleanName=(value:unknown)=>String(value||'Player')
-  .replace(/[\\u0000-\\u001f\\u007f]/g,' ').trim().slice(0,64);
+  .replace(/\p{Cc}/gu,' ').trim().slice(0,64);
 
 Deno.serve(async(req)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:HEADERS});
