@@ -4,6 +4,7 @@ import { getPlayerPosition, subscribePlayerPosition } from '../playerPositionSto
 import { getLunarCaveMapEnemies, subscribeLunarCaveMapEnemies } from '../dungeons/LunarCaveMapStore.mjs';
 import { LUNAR_CAVE_CHAMBERS,LUNAR_CAVE_PASSAGES,LUNAR_CAVE_WATER_END,LUNAR_CAVE_ROOM_RADIUS,LUNAR_CAVE_PASSAGE_HALF_WIDTH } from '../dungeons/LunarCaveLayout.mjs';
 import { ASTRAL_PADS,ASTRAL_BRIDGES,ASTRAL_PAD_RADIUS,ASTRAL_BRIDGE_HALF_WIDTH } from '../dungeons/AstralDungeonLayout.mjs';
+import {WOLFVEIL_CAVE_APPROACHES} from '../wolfveil/WolfveilCaveAccessPlan.mjs';
 import { getQuestState, subscribeQuests } from '../useQuestStore';
 import { AXE_FIRST_REGION } from '../axe/world/AXEFirstRegionLayout';
 import { getMapMarkers, getMapScale, getMapZone, getQuestNavigationTarget, projectMapPosition } from './worldMapData';
@@ -160,6 +161,27 @@ export default function AXEWorldMapOverlay({ region='wolfveil', onClose }) {
                     fill="none" stroke="#88c2f8" strokeWidth="2"/>
                   <text x={a.x} y={a.y+5} fill="#fff4df" fontSize="16"
                     textAnchor="middle">{p.index}</text>
+                </g>;
+              })}
+            </g>}
+            {region==='wolfveil'&&<g aria-label="Four cave approach trails and walk-in entrances">
+              {WOLFVEIL_CAVE_APPROACHES.map(approach=>{
+                const points=approach.points.map(point=>{
+                  const p=projectMapPosition('wolfveil',point.x,point.z+70);
+                  return p.x+','+p.y;
+                }).join(' ');
+                const end=projectMapPosition('wolfveil',
+                  approach.entrance.x,approach.entrance.z+70);
+                return <g key={approach.id}>
+                  <polyline points={points} fill="none" stroke="#e2c58c"
+                    strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1={projectMapPosition('wolfveil',approach.points.at(-1).x,
+                    approach.points.at(-1).z+70).x}
+                    y1={projectMapPosition('wolfveil',approach.points.at(-1).x,
+                      approach.points.at(-1).z+70).y}
+                    x2={end.x} y2={end.y} stroke="#b7e1d6" strokeWidth="3"/>
+                  <circle cx={end.x} cy={end.y} r="7"
+                    fill="#e8c784" stroke="#102b35" strokeWidth="2"/>
                 </g>;
               })}
             </g>}

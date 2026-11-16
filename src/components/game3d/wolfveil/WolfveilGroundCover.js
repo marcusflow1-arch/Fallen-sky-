@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import {insideWolfveilImportedTown} from './WolfveilImportedTownLayout.mjs';
 import {WOLFVEIL_ROUTES,WOLFVEIL_SITES,wolfveilDistanceToRiver,wolfveilRouteClearance} from './WolfveilLayout.js';
 import {clearOf,wolfveilTreePlacements} from './WolfveilForestLayout.js';
+import {isWolfveilCaveApproachReserved} from './WolfveilCaveAccessPlan.mjs';
 import {mulberry32} from './WolfveilGeometry.js';
 import {isInsideWolfveilSpawnTile} from './WolfveilSpawnTile.js';
 import {createWolfveilTerrainSurfaceSampler} from './WolfveilTerrainSurfaceSampler.mjs';
@@ -287,6 +288,22 @@ export function buildWolfveilGroundCover(world,options={}){
       flow.shrubs=flow.shrubs.filter(clearTown);
     }
   }
+  // Only remove grass growing through the new cave access lanes. Original
+  // authored LAND tile vegetation and approved landscaping outside these
+  // narrow paths are never moved or re-graded.
+  const clearCavePath=p=>!options.importedTownAtMarket ||
+    !isWolfveilCaveApproachReserved(p.x,p.z,.95);
+  for(let i=patches.length-1;i>=0;i--){
+    patches[i].plants=patches[i].plants.filter(clearCavePath);
+    if(!patches[i].plants.length)patches.splice(i,1);
+  }
+  if(flow){
+    flow.grass=flow.grass.filter(clearCavePath);
+    flow.shrubs=flow.shrubs.filter(clearCavePath);
+  }
+  // Keep small path-edge pebbles but never place loose rocks in the tread.
+  for(let i=stoneSpecs.length-1;i>=0;i--)
+    if(!clearCavePath(stoneSpecs[i]))stoneSpecs.splice(i,1);
   // 25% southwest-quarter quality pass: keep the strong shapes, halve the
   // anonymous grass/shrub/path-stone instances. No tree or collision changes.
   // Independent tile-owner patches are excluded; the other teams can continue.

@@ -3,6 +3,7 @@
 // in instanced batches the camera can cull by region. Decorative only: never
 // a floor, click target or collider.
 import * as THREE from 'three';
+import {isWolfveilCaveApproachReserved} from './WolfveilCaveAccessPlan.mjs';
 import {planWolfveilLivingLandscape} from './WolfveilLivingLandscapePlan.mjs';
 import {rockGeometry,byRegion} from './WolfveilTrailLandscaping.js';
 
@@ -148,7 +149,8 @@ export function buildWolfveilLivingLandscape(world,{heightAt}){
       tint.set(pick(LOG_TONES,l.tone)).lerp(MOSS,l.moss*.4);}],
   ];
   for(const [items,geometry,material,name,place] of layers)
-    for(const region of byRegion(items))batch(world,geometry,material,region,name,place);
+    for(const region of byRegion(items.filter(p=>!isWolfveilCaveApproachReserved(p.x,p.z,.65))))
+      batch(world,geometry,material,region,name,place);
   return {flowers:plan.flowers.length,shrubs:plan.shrubs.length,ferns:plan.ferns.length,
     reeds:plan.reeds.length,bankStones:plan.bankStones.length,logs:plan.logs.length,
     triangles:plan.triangles};

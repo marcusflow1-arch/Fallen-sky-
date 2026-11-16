@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { WOLFVEIL_ROUTES, WOLFVEIL_SITES, wolfveilDistanceToRiver, wolfveilRouteClearance } from './WolfveilLayout.js';
 import { insideWolfveilImportedTown } from './WolfveilImportedTownLayout.mjs';
 import { isWolfveilCaveMouthCutout } from './WolfveilCaveLayout.mjs';
+import {isWolfveilCaveApproachReserved} from './WolfveilCaveAccessPlan.mjs';
 import { clearOf } from './WolfveilForestLayout.js';
 import { mulberry32 } from './WolfveilGeometry.js';
 import { createWolfveilTerrainSurfaceSampler } from './WolfveilTerrainSurfaceSampler.mjs';
@@ -153,7 +154,8 @@ export function buildWolfveilIndividualGrassField(world, {
   const acceptSpot = (x, z, minRouteClear = 0.55) => {
     if (Math.abs(x) > 480 || Math.abs(z) > 480) return false;
     if (importedTownAtMarket && insideWolfveilImportedTown(x, z, 1.8)) return false;
-    if (isWolfveilCaveMouthCutout(x, z)) return false;
+    if (isWolfveilCaveMouthCutout(x, z)||
+        (importedTownAtMarket&&isWolfveilCaveApproachReserved(x,z,1.0))) return false;
     if (wolfveilDistanceToRiver(x, z) < 11.2) return false;
     if (wolfveilRouteClearance(x, z) < minRouteClear) return false;
     if (!clearOf({ x, z }, 0.35)) return false;

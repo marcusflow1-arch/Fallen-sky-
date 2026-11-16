@@ -716,6 +716,18 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
       onStats(stats){window.__gw3dRegionStreamingStatus=stats;},
     }):null;
     if(regionStream)window.__gw3dRegionStreamer=regionStream;
+    // In an explicitly E-entered cave session, movement's ground-step guard
+    // must use the nearby real ramp contact rather than the overhead sealed
+    // mountain. Outside (no cave session), the cave system returns no Y, so
+    // the fully preserved surface roof remains the only valid floor.
+    const caveAwareGroundY=(x,z,referenceY)=>{
+      const ordinary=sampleGroundY(x,z,referenceY);
+      if(region!=='wolfveil'||suigenActive||!wolfveilVillage?.caveSystem||
+         !Number.isFinite(referenceY))return ordinary;
+      const caveY=wolfveilVillage.caveSystem.playerGroundY({x,y:referenceY,z});
+      return Number.isFinite(caveY)&&Math.abs(caveY-referenceY)<=1.1
+        ?caveY:ordinary;
+    };
     // Clone-only ambient wildlife: one owner bird GLB, cosmetic flight only.
     const ambientBirds=wolfveilVillage?createWolfveilAmbientBirds({
       scene,quality:readGraphicsSettings().quality||'high',
@@ -2621,8 +2633,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
        shouldRejectCaveGroundStep({
          from:{x:fromX,z:fromZ},
          to:{x:model.position.x,z:model.position.z},
-         fromGroundY:sampleGroundY(fromX,fromZ,model.position.y),
-         toGroundY:sampleGroundY(model.position.x,model.position.z,model.position.y),
+         fromGroundY:caveAwareGroundY(fromX,fromZ,model.position.y),
+         toGroundY:caveAwareGroundY(model.position.x,model.position.z,model.position.y),
          variant:suigenActive?'suigen':'classic',actorRadius:mounted?.85:.62,
        })){
       model.position.x=fromX;model.position.z=fromZ;
@@ -3054,8 +3066,8 @@ export default function GameWorld3D({region='wolfveil',initialWorkflowTarget=nul
             shouldRejectCaveGroundStep({
              from:beforeRoguePush,
              to:{x:model.position.x,z:model.position.z},
-             fromGroundY:sampleGroundY(beforeRoguePush.x,beforeRoguePush.z,model.position.y),
-             toGroundY:sampleGroundY(model.position.x,model.position.z,model.position.y),
+             fromGroundY:caveAwareGroundY(beforeRoguePush.x,beforeRoguePush.z,model.position.y),
+             toGroundY:caveAwareGroundY(model.position.x,model.position.z,model.position.y),
              variant:suigenActive?'suigen':'classic',
              actorRadius:mounted?.85:.62,
            })))){
